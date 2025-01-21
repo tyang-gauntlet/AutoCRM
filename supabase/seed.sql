@@ -1,4 +1,20 @@
--- Seed data for profiles (users)
+-- First create users in auth.users
+INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, created_at, updated_at)
+VALUES
+  ('d0d4dc14-7c31-4c26-87fa-31e0c0f40c91', 'admin@example.com', crypt('admin123', gen_salt('bf')), now(), now(), now()),
+  ('e16c304f-87f9-4d4c-a5c8-26a551a4c425', 'user@example.com', crypt('user123', gen_salt('bf')), now(), now(), now());
+
+-- Create identities for the users (fixed with provider_id)
+INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
+VALUES
+  ('d0d4dc14-7c31-4c26-87fa-31e0c0f40c91', 'd0d4dc14-7c31-4c26-87fa-31e0c0f40c91', 
+   jsonb_build_object('sub', 'd0d4dc14-7c31-4c26-87fa-31e0c0f40c91', 'email', 'admin@example.com'),
+   'email', 'admin@example.com', now(), now(), now()),
+  ('e16c304f-87f9-4d4c-a5c8-26a551a4c425', 'e16c304f-87f9-4d4c-a5c8-26a551a4c425', 
+   jsonb_build_object('sub', 'e16c304f-87f9-4d4c-a5c8-26a551a4c425', 'email', 'user@example.com'),
+   'email', 'user@example.com', now(), now(), now());
+
+-- Then create profiles for the users
 INSERT INTO public.profiles (id, full_name, role)
 VALUES
   ('d0d4dc14-7c31-4c26-87fa-31e0c0f40c91', 'Admin User', 'admin'),
