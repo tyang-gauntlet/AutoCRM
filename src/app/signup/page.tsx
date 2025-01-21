@@ -19,6 +19,7 @@ export default function SignUpPage() {
             setError('Check your email for the confirmation link')
         } catch (error) {
             setError('Error creating account')
+            console.error(error)
         }
     }
 

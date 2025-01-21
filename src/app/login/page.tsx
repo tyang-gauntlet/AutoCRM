@@ -1,14 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { useAuth } from '@/hooks/useAuth'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import Link from 'next/link'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
-    const { loading } = useAuth()
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [error, setError] = useState<string | null>(null)
@@ -23,14 +23,12 @@ export default function LoginPage() {
         setIsSubmitting(true)
 
         try {
-            // First sign in
             const { data, error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             })
 
             if (error) throw error
-            console.log('Initial sign in response:', data)
 
             if (data?.session) {
                 // Force complete session refresh
@@ -43,14 +41,9 @@ export default function LoginPage() {
                 })
 
                 if (newError) throw newError
-                console.log('New session data:', newData)
 
                 // Get role from various possible locations
-                const role = newData.session?.user.user_metadata?.role ||
-                    newData.session?.user.app_metadata?.role ||
-                    (newData.session?.user.user_metadata?.claims_admin ? 'admin' : 'user')
-
-                console.log('Determined role:', role)
+                const role = newData.session?.user.app_metadata?.role || 'user'
 
                 // Redirect based on role
                 window.location.replace(role === 'admin' ? '/admin/dashboard' : '/user/dashboard')
@@ -63,76 +56,62 @@ export default function LoginPage() {
         }
     }
 
-    if (loading) {
-        return (
-            <div className="flex min-h-screen items-center justify-center">
-                <div className="text-lg">Loading...</div>
-            </div>
-        )
-    }
-
     return (
-        <div className="flex min-h-screen items-center justify-center bg-background">
-            <div className="w-full max-w-md space-y-8 rounded-lg border bg-card p-6">
-                <div>
-                    <h2 className="text-center text-3xl font-bold tracking-tight">
-                        Sign in to your account
-                    </h2>
+        <div className="flex min-h-screen items-center justify-center">
+            <div className="w-full max-w-md space-y-8 px-4 py-8">
+                <div className="space-y-2 text-center">
+                    <h1 className="text-3xl font-bold">Welcome Back</h1>
+                    <p className="text-muted-foreground">
+                        Sign in to your account to continue
+                    </p>
                 </div>
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
                     {error && (
-                        <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
-                            {error}
-                        </div>
+                        <Alert variant="destructive">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription>{error}</AlertDescription>
+                        </Alert>
                     )}
-                    <div className="space-y-4 rounded-md">
-                        <div>
-                            <label htmlFor="email" className="sr-only">
-                                Email address
-                            </label>
-                            <Input
-                                id="email"
-                                name="email"
-                                type="email"
-                                autoComplete="email"
-                                required
-                                placeholder="Email address"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <label htmlFor="password" className="sr-only">
-                                Password
-                            </label>
-                            <Input
-                                id="password"
-                                name="password"
-                                type="password"
-                                autoComplete="current-password"
-                                required
-                                placeholder="Password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                            />
-                        </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                            id="email"
+                            type="email"
+                            placeholder="you@example.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
                     </div>
 
-                    <div>
-                        <Button
-                            type="submit"
-                            className="w-full"
-                            disabled={isSubmitting}
-                        >
-                            {isSubmitting ? 'Signing in...' : 'Sign in'}
-                        </Button>
+                    <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <Input
+                            id="password"
+                            type="password"
+                            placeholder="••••••••"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
                     </div>
+
+                    <Button
+                        type="submit"
+                        className="w-full"
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? "Signing in..." : "Sign in"}
+                    </Button>
                 </form>
 
-                <div className="text-center text-sm">
-                    <Link href="/signup" className="text-primary hover:text-primary/90">
-                        Don't have an account? Sign up
-                    </Link>
+                <div className="text-center text-sm text-muted-foreground">
+                    Don&apos;t have an account?{' '}
+                    <a href="/signup" className="underline">
+                        Sign up
+                    </a>
                 </div>
             </div>
         </div>

@@ -2,16 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useRouter } from 'next/navigation'
+import { Session, User, AuthChangeEvent } from '@supabase/supabase-js'
 
 export function useAuth() {
-    const [user, setUser] = useState<null | any>(null)
+    const [user, setUser] = useState<null | User>(null)
     const [loading, setLoading] = useState(true)
-    const router = useRouter()
     const supabase = createClientComponentClient()
 
     // Handle auth state changes
-    const handleAuthStateChange = useCallback(async (event: string, session: any) => {
+    const handleAuthStateChange = useCallback(async (event: AuthChangeEvent, session: Session | null) => {
         console.log('Auth state changed:', event)
         if (event === 'SIGNED_OUT') {
             setUser(null)
@@ -49,7 +48,7 @@ export function useAuth() {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange)
         return () => subscription.unsubscribe()
-    }, [handleAuthStateChange])
+    }, [handleAuthStateChange, supabase.auth])
 
     const signOut = useCallback(async () => {
         try {
@@ -68,9 +67,18 @@ export function useAuth() {
         }
     }, [supabase.auth])
 
+    const signUp = useCallback(async (email: string, password: string) => {
+        const { error } = await supabase.auth.signUp({
+            email,
+            password,
+        })
+        if (error) throw error
+    }, [supabase.auth])
+
     return {
         user,
         loading,
         signOut,
+        signUp,
     }
 }
