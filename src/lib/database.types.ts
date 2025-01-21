@@ -111,23 +111,32 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          email: string | null
           full_name: string | null
           id: string
+          last_sign_in_at: string | null
           role: string
+          status: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id: string
+          last_sign_in_at?: string | null
           role?: string
+          status?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id?: string
+          last_sign_in_at?: string | null
           role?: string
+          status?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -242,7 +251,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_emails: {
+        Args: {
+          user_ids: string[]
+        }
+        Returns: {
+          id: string
+          email: string
+        }[]
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

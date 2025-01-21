@@ -10,8 +10,11 @@ import {
     Clock,
     ListTodo,
     Bot,
-    AlertCircle
+    AlertCircle,
+    Shield,
+    UserCog
 } from 'lucide-react'
+import Link from 'next/link'
 
 export default function AdminDashboard() {
     const stats = [
@@ -77,6 +80,50 @@ export default function AdminDashboard() {
 
             {/* Main Grid */}
             <div className="grid gap-6 md:grid-cols-2">
+                {/* User Management */}
+                <Card className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold">User Management</h3>
+                        <Link href="/admin/users">
+                            <Button variant="outline" size="sm" className="gap-2">
+                                <UserCog className="h-4 w-4" />
+                                Manage Users
+                            </Button>
+                        </Link>
+                    </div>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                            <div className="flex items-center gap-3">
+                                <Users className="h-5 w-5 text-muted-foreground" />
+                                <div>
+                                    <p className="font-medium">Total Users</p>
+                                    <p className="text-2xl font-bold">24</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <p className="font-medium">Active Today</p>
+                                <p className="text-2xl font-bold text-primary">18</p>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="p-3 bg-muted/50 rounded-lg">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <Shield className="h-4 w-4 text-blue-500" />
+                                    <p className="text-sm font-medium">Admins</p>
+                                </div>
+                                <p className="text-xl font-bold">3</p>
+                            </div>
+                            <div className="p-3 bg-muted/50 rounded-lg">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <Users className="h-4 w-4 text-green-500" />
+                                    <p className="text-sm font-medium">Support</p>
+                                </div>
+                                <p className="text-xl font-bold">21</p>
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+
                 {/* Queue Management */}
                 <Card className="p-6">
                     <h3 className="text-lg font-semibold mb-4">Active Queue</h3>

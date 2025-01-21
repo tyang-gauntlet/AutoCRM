@@ -5,9 +5,11 @@ import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 export default function SignUpPage() {
     const { signUp } = useAuth()
+    const router = useRouter()
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [error, setError] = useState<string | null>(null)
@@ -16,7 +18,7 @@ export default function SignUpPage() {
         e.preventDefault()
         try {
             await signUp(email, password)
-            setError('Check your email for the confirmation link')
+            router.push('/user/dashboard')
         } catch (error: any) {
             setError(error?.message || 'Error creating account')
             console.error(error)
