@@ -38,7 +38,14 @@ create table public.ticket_messages (
 alter table public.tickets enable row level security;
 alter table public.ticket_messages enable row level security;
 
--- RLS policies for tickets
+-- Drop existing policies if they exist
+drop policy if exists "Users can view their own tickets or assigned tickets or reviewers can view all" on public.tickets;
+drop policy if exists "Users can create tickets" on public.tickets;
+drop policy if exists "Ticket update policy" on public.tickets;
+drop policy if exists "Users can view messages of accessible tickets" on public.ticket_messages;
+drop policy if exists "Users can create messages for accessible tickets" on public.ticket_messages;
+
+-- Create RLS policies for tickets
 create policy "Users can view their own tickets or assigned tickets or reviewers can view all"
   on public.tickets for select
   using (
@@ -54,26 +61,22 @@ create policy "Users can create tickets"
   on public.tickets for insert
   with check (auth.role() = 'authenticated');
 
--- Drop existing update policy if it exists
-DROP POLICY IF EXISTS "Reviewers can update any ticket" ON public.tickets;
-
--- Create a new update policy for tickets
-CREATE POLICY "Ticket update policy"
-  ON public.tickets FOR UPDATE
-  USING (
+create policy "Ticket update policy"
+  on public.tickets for update
+  using (
     auth.uid() = created_by 
-    OR auth.uid() = assigned_to
-    OR EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('admin', 'reviewer')
+    or auth.uid() = assigned_to
+    or exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role in ('admin', 'reviewer')
     )
   )
-  WITH CHECK (
+  with check (
     auth.uid() = created_by 
-    OR auth.uid() = assigned_to
-    OR EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('admin', 'reviewer')
+    or auth.uid() = assigned_to
+    or exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role in ('admin', 'reviewer')
     )
   );
 
@@ -89,7 +92,7 @@ create policy "Users can view messages of accessible tickets"
         or t.assigned_to = auth.uid()
         or exists (
           select 1 from public.profiles
-          where id = auth.uid() and role = 'admin'
+          where id = auth.uid() and role in ('admin', 'reviewer')
         )
       )
     )
@@ -106,7 +109,7 @@ create policy "Users can create messages for accessible tickets"
         or t.assigned_to = auth.uid()
         or exists (
           select 1 from public.profiles
-          where id = auth.uid() and role = 'admin'
+          where id = auth.uid() and role in ('admin', 'reviewer')
         )
       )
     )
@@ -127,17 +130,17 @@ create trigger tickets_updated_at
   execute function update_updated_at_column();
 
 -- Update the assigned_to reference
-ALTER TABLE public.tickets 
-DROP CONSTRAINT tickets_assigned_to_fkey,
-ADD CONSTRAINT tickets_assigned_to_fkey 
-    FOREIGN KEY (assigned_to) 
-    REFERENCES public.profiles(id) 
-    ON DELETE SET NULL;
+alter table public.tickets 
+drop constraint if exists tickets_assigned_to_fkey,
+add constraint tickets_assigned_to_fkey 
+    foreign key (assigned_to) 
+    references public.profiles(id) 
+    on delete set null;
 
 -- Update the ticket_messages table to reference profiles instead of auth.users
-ALTER TABLE public.ticket_messages 
-DROP CONSTRAINT ticket_messages_sender_id_fkey,
-ADD CONSTRAINT ticket_messages_sender_id_fkey 
-    FOREIGN KEY (sender_id) 
-    REFERENCES public.profiles(id) 
-    ON DELETE SET NULL; 
+alter table public.ticket_messages 
+drop constraint if exists ticket_messages_sender_id_fkey,
+add constraint ticket_messages_sender_id_fkey 
+    foreign key (sender_id) 
+    references public.profiles(id) 
+    on delete set null; 

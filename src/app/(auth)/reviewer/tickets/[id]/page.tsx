@@ -13,11 +13,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import type { Database } from '@/lib/database.types'
-import { Database } from '@/lib/database.types'
 import { Separator } from '@/components/ui/separator'
 import { useTicketDetails } from '@/hooks/use-ticket-details'
+
+type TicketPriority = 'low' | 'medium' | 'high' | 'urgent'
+type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed'
 
 const priorityColors = {
     low: 'bg-blue-100 text-blue-800',
@@ -33,26 +33,14 @@ const statusColors = {
     closed: 'bg-red-100 text-red-800'
 } as const
 
-type Ticket = Database['public']['Tables']['tickets']['Row'] & {
-    customer: Pick<Database['public']['Tables']['customers']['Row'], 'name'> | null
-    assigned: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name'> | null
-}
-
-type Message = {
-    id: string
-    content: string
-    created_at: string
-    sender_id: string
-    sender: {
-        full_name: string
-    }
-}
-
 export default function ReviewerTicketDetail() {
-    const params = useParams()
+    const params = useParams<{ id: string }>()
     const [message, setMessage] = useState('')
     const messagesEndRef = useRef<HTMLDivElement>(null)
-    const { ticket, messages, loading, sendMessage, updateStatus, assignToMe } = useTicketDetails(params.id, 'reviewer')
+    const { ticket, messages, loading, sendMessage, updateStatus, assignToMe } = useTicketDetails(
+        params.id as string,
+        'reviewer'
+    )
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -86,10 +74,10 @@ export default function ReviewerTicketDetail() {
                     <div>
                         <h1 className="text-2xl font-bold mb-2">{ticket.title}</h1>
                         <div className="flex gap-2 mb-2">
-                            <Badge className={priorityColors[ticket.priority]}>
+                            <Badge className={priorityColors[ticket.priority as TicketPriority]}>
                                 {ticket.priority}
                             </Badge>
-                            <Badge className={statusColors[ticket.status]}>
+                            <Badge className={statusColors[ticket.status as TicketStatus]}>
                                 {ticket.status}
                             </Badge>
                         </div>

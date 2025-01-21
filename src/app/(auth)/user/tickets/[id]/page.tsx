@@ -6,10 +6,11 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import type { Database } from '@/lib/database.types'
 import { Separator } from '@/components/ui/separator'
 import { useTicketDetails } from '@/hooks/use-ticket-details'
+
+type TicketPriority = 'low' | 'medium' | 'high' | 'urgent'
+type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed'
 
 const priorityColors = {
     low: 'bg-blue-100 text-blue-800',
@@ -25,21 +26,14 @@ const statusColors = {
     closed: 'bg-red-100 text-red-800'
 } as const
 
-type Message = {
-    id: string
-    content: string
-    created_at: string
-    sender_id: string
-    sender: {
-        full_name: string
-    }
-}
-
 export default function TicketDetail() {
-    const params = useParams()
+    const params = useParams<{ id: string }>()
     const [message, setMessage] = useState('')
     const messagesEndRef = useRef<HTMLDivElement>(null)
-    const { ticket, messages, loading, sendMessage } = useTicketDetails(params.id, 'user')
+    const { ticket, messages, loading, sendMessage } = useTicketDetails(
+        params.id as string,
+        'user'
+    )
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -61,7 +55,7 @@ export default function TicketDetail() {
         }
     }
 
-    if (loading) {
+    if (loading || !ticket) {
         return <div>Loading...</div>
     }
 
@@ -73,10 +67,10 @@ export default function TicketDetail() {
                     <div>
                         <h1 className="text-2xl font-bold mb-2">{ticket.title}</h1>
                         <div className="flex gap-2 mb-2">
-                            <Badge className={priorityColors[ticket.priority]}>
+                            <Badge className={priorityColors[ticket.priority as TicketPriority]}>
                                 {ticket.priority}
                             </Badge>
-                            <Badge className={statusColors[ticket.status]}>
+                            <Badge className={statusColors[ticket.status as TicketStatus]}>
                                 {ticket.status}
                             </Badge>
                         </div>
@@ -87,7 +81,9 @@ export default function TicketDetail() {
                     {ticket.assigned && (
                         <div className="text-right">
                             <p className="text-sm font-medium">Assigned to:</p>
-                            <p className="text-sm text-muted-foreground">{ticket.assigned.full_name}</p>
+                            <p className="text-sm text-muted-foreground">
+                                {ticket.assigned.full_name}
+                            </p>
                         </div>
                     )}
                 </div>
@@ -100,12 +96,12 @@ export default function TicketDetail() {
                     {messages.map((msg) => (
                         <div
                             key={msg.id}
-                            className={`flex flex-col ${msg.sender_id === ticket?.created_by ? 'items-end' : 'items-start'
+                            className={`flex flex-col ${msg.sender_id === ticket.created_by ? 'items-end' : 'items-start'
                                 }`}
                         >
-                            <div className={`max-w-[80%] rounded-lg p-3 ${msg.sender_id === ticket?.created_by
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted'
+                            <div className={`max-w-[80%] rounded-lg p-3 ${msg.sender_id === ticket.created_by
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted'
                                 }`}>
                                 <div className="flex items-center gap-2 mb-1">
                                     <span className="text-sm font-medium">

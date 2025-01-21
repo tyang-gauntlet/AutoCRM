@@ -1,10 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/lib/database.types'
+
+type TicketPriority = 'low' | 'medium' | 'high' | 'urgent'
+type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed'
 
 type Ticket = Database['public']['Tables']['tickets']['Row'] & {
     customer: Pick<Database['public']['Tables']['customers']['Row'], 'name'> | null
     assigned: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name'> | null
+    priority: TicketPriority
+    status: TicketStatus
 }
 
 type Message = {
@@ -34,41 +39,42 @@ export function useTicketDetails(ticketId: string, role?: 'reviewer' | 'user'): 
     const supabase = createClientComponentClient<Database>()
 
     // Fetch ticket and messages
-    const fetchTicket = async () => {
-        const { data: ticketData, error: ticketError } = await supabase
-            .from('tickets')
-            .select(`
-                *,
-                customer:customers(name),
-                assigned:profiles(full_name)
-            `)
-            .eq('id', ticketId)
-            .single()
+    const fetchTicket = useCallback(async () => {
+        console.log('Fetching ticket:', ticketId)
+        try {
+            const { data: ticketData, error: ticketError } = await supabase
+                .from('tickets')
+                .select(`
+                    *,
+                    customer:customers(name),
+                    assigned:profiles(full_name)
+                `)
+                .eq('id', ticketId)
+                .single()
 
-        if (ticketError) {
-            console.error('Error fetching ticket:', ticketError)
-            return
+            if (ticketError) throw ticketError
+
+            console.log('Ticket data received:', ticketData)
+            setTicket(ticketData as Ticket)
+
+            const { data: messagesData, error: messagesError } = await supabase
+                .from('ticket_messages')
+                .select(`
+                    *,
+                    sender:profiles(full_name)
+                `)
+                .eq('ticket_id', ticketId)
+                .order('created_at', { ascending: true })
+
+            if (messagesError) throw messagesError
+
+            setMessages(messagesData as Message[])
+        } catch (error) {
+            console.error('Error fetching data:', error)
+        } finally {
+            setLoading(false)
         }
-
-        setTicket(ticketData)
-
-        const { data: messagesData, error: messagesError } = await supabase
-            .from('ticket_messages')
-            .select(`
-                *,
-                sender:profiles(full_name)
-            `)
-            .eq('ticket_id', ticketId)
-            .order('created_at', { ascending: true })
-
-        if (messagesError) {
-            console.error('Error fetching messages:', messagesError)
-            return
-        }
-
-        setMessages(messagesData)
-        setLoading(false)
-    }
+    }, [supabase, ticketId])
 
     // Send message
     const sendMessage = async (content: string) => {
@@ -94,10 +100,14 @@ export function useTicketDetails(ticketId: string, role?: 'reviewer' | 'user'): 
     // Update ticket status (reviewer only)
     const updateStatus = async (newStatus: string) => {
         if (role !== 'reviewer') return false
+        console.log('Updating status to:', newStatus)
 
         const { error } = await supabase
             .from('tickets')
-            .update({ status: newStatus })
+            .update({
+                status: newStatus,
+                updated_at: new Date().toISOString() // Add this to force an update
+            })
             .eq('id', ticketId)
 
         if (error) {
@@ -105,6 +115,8 @@ export function useTicketDetails(ticketId: string, role?: 'reviewer' | 'user'): 
             return false
         }
 
+        console.log('Status updated successfully')
+        await fetchTicket() // Immediately fetch updated data
         return true
     }
 
@@ -132,6 +144,7 @@ export function useTicketDetails(ticketId: string, role?: 'reviewer' | 'user'): 
     }
 
     useEffect(() => {
+        console.log('Setting up subscriptions for ticket:', ticketId)
         fetchTicket()
 
         // Subscribe to ticket changes
@@ -148,32 +161,28 @@ export function useTicketDetails(ticketId: string, role?: 'reviewer' | 'user'): 
                     console.log('Ticket update received:', payload)
                     if (payload.new) {
                         // Immediately update basic fields
-                        setTicket(current => ({
-                            ...current,
-                            ...payload.new,
-                            // Preserve relationship data until we fetch fresh data
-                            customer: current?.customer,
-                            assigned: current?.assigned
-                        }))
+                        setTicket(current => {
+                            if (!current) return null
+                            console.log('Updating ticket state:', {
+                                current,
+                                new: payload.new
+                            })
+                            return {
+                                ...current,
+                                ...payload.new,
+                                customer: current.customer,
+                                assigned: current.assigned
+                            } as Ticket
+                        })
 
-                        // Then fetch fresh data to update relationships
-                        const { data } = await supabase
-                            .from('tickets')
-                            .select(`
-                                *,
-                                customer:customers(name),
-                                assigned:profiles(full_name)
-                            `)
-                            .eq('id', ticketId)
-                            .single()
-
-                        if (data) {
-                            setTicket(data)
-                        }
+                        // Then fetch fresh data
+                        await fetchTicket()
                     }
                 }
             )
-            .subscribe()
+            .subscribe((status) => {
+                console.log('Ticket subscription status:', status)
+            })
 
         // Subscribe to messages
         const messageChannel = supabase
@@ -186,17 +195,20 @@ export function useTicketDetails(ticketId: string, role?: 'reviewer' | 'user'): 
                     filter: `ticket_id=eq.${ticketId}`
                 },
                 (payload) => {
+                    console.log('Message received:', payload)
                     setMessages(current => [...current, payload.new as Message])
                 }
             )
-            .subscribe()
+            .subscribe((status) => {
+                console.log('Message subscription status:', status)
+            })
 
         return () => {
-            console.log('Cleaning up subscriptions')
+            console.log('Cleaning up subscriptions for ticket:', ticketId)
             supabase.removeChannel(ticketChannel)
             supabase.removeChannel(messageChannel)
         }
-    }, [supabase, ticketId])
+    }, [supabase, ticketId, fetchTicket])
 
     // Return different actions based on role
     return {

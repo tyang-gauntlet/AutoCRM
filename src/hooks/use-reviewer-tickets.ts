@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/lib/database.types'
 
@@ -12,7 +12,7 @@ export function useReviewerTickets() {
     const [loading, setLoading] = useState(true)
     const supabase = createClientComponentClient<Database>()
 
-    const fetchTickets = async () => {
+    const fetchTickets = useCallback(async () => {
         const { data: { session } } = await supabase.auth.getSession()
         if (!session) return
 
@@ -31,7 +31,7 @@ export function useReviewerTickets() {
             console.error('Error fetching tickets:', error)
         }
         setLoading(false)
-    }
+    }, [supabase])
 
     useEffect(() => {
         fetchTickets()
@@ -51,7 +51,7 @@ export function useReviewerTickets() {
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [supabase])
+    }, [supabase, fetchTickets])
 
     const assignTicket = async (ticketId: string) => {
         const { data: { session } } = await supabase.auth.getSession()
