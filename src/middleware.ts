@@ -6,28 +6,39 @@ import type { NextRequest } from 'next/server'
 const PUBLIC_ROUTES = ['/login', '/signup', '/forgot-password', '/auth/callback', '/']
 
 export async function middleware(request: NextRequest) {
-    const res = NextResponse.next()
-    const supabase = createMiddlewareClient({ req: request, res })
-
-    const {
-        data: { session },
-    } = await supabase.auth.getSession()
-
-    const { pathname } = request.nextUrl
-
-    // If user is not authenticated and trying to access protected routes
-    if (!session && pathname.startsWith('/dashboard')) {
-        return NextResponse.redirect(new URL('/login', request.url))
+    // Skip middleware for static files and api routes
+    if (request.nextUrl.pathname.startsWith('/_next') ||
+        request.nextUrl.pathname.startsWith('/api') ||
+        request.nextUrl.pathname.startsWith('/favicon.ico')) {
+        return NextResponse.next()
     }
 
-    // If user is authenticated and trying to access login
-    if (session && pathname === '/login') {
-        return NextResponse.redirect(new URL('/dashboard', request.url))
+    const res = NextResponse.next()
+    const supabase = createMiddlewareClient({ req: request, res })
+    const { data: { session } } = await supabase.auth.getSession()
+    const { pathname } = request.nextUrl
+
+    // Check if the current route is public
+    const isPublicRoute = PUBLIC_ROUTES.some(route =>
+        pathname === route || pathname.startsWith('/auth/')
+    )
+
+    // If we have a session but trying to access public routes (except home)
+    if (session && isPublicRoute && pathname !== '/') {
+        const userRole = session.user.app_metadata?.role || 'user'
+        return NextResponse.redirect(
+            new URL(userRole === 'admin' ? '/admin/dashboard' : '/user/dashboard', request.url)
+        )
+    }
+
+    // If we don't have a session and trying to access protected routes
+    if (!session && !isPublicRoute) {
+        return NextResponse.redirect(new URL('/login', request.url))
     }
 
     return res
 }
 
 export const config = {
-    matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+    matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }

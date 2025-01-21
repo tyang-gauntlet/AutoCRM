@@ -2,7 +2,7 @@
 create table public.profiles (
   id uuid references auth.users on delete cascade not null primary key,
   full_name text,
-  role text check (role in ('admin', 'user')) default 'user',
+  role text check (role in ('admin', 'reviewer', 'user')) default 'user',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -87,3 +87,38 @@ create index customers_email_idx on public.customers (email);
 create index customers_phone_idx on public.customers (phone);
 create index interactions_customer_id_idx on public.interactions (customer_id);
 create index interactions_user_id_idx on public.interactions (user_id);
+
+-- Add trigger to sync roles between profile and user metadata
+create or replace function sync_user_role()
+returns trigger as $$
+begin
+  raise notice 'Syncing role for user % from % to %', NEW.id, OLD.role, NEW.role;
+  
+  update auth.users 
+  set 
+    raw_app_meta_data = 
+      coalesce(raw_app_meta_data, '{}'::jsonb) || 
+      jsonb_build_object('role', NEW.role),
+    raw_user_meta_data = 
+      coalesce(raw_user_meta_data, '{}'::jsonb) || 
+      jsonb_build_object('full_name', NEW.full_name)
+  where id = NEW.id;
+
+  -- Invalidate all sessions for this user
+  delete from auth.sessions where user_id = NEW.id;
+  
+  raise notice 'Role sync complete for user %', NEW.id;
+  return NEW;
+end;
+$$ language plpgsql security definer;
+
+-- Create trigger for role synchronization
+create trigger on_role_update
+  after insert or update of role on public.profiles
+  for each row
+  execute function sync_user_role();
+
+-- Add constraint to ensure valid roles
+alter table public.profiles 
+  alter column role set not null,
+  alter column role set default 'user';

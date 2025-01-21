@@ -23,16 +23,37 @@ export default function LoginPage() {
         setIsSubmitting(true)
 
         try {
+            // First sign in
             const { data, error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             })
 
             if (error) throw error
+            console.log('Initial sign in response:', data)
 
             if (data?.session) {
-                // Redirect to the dashboard page inside (auth) folder
-                window.location.replace('/dashboard')
+                // Force complete session refresh
+                await supabase.auth.signOut()
+
+                // Get fresh session with updated claims
+                const { data: newData, error: newError } = await supabase.auth.signInWithPassword({
+                    email,
+                    password,
+                })
+
+                if (newError) throw newError
+                console.log('New session data:', newData)
+
+                // Get role from various possible locations
+                const role = newData.session?.user.user_metadata?.role ||
+                    newData.session?.user.app_metadata?.role ||
+                    (newData.session?.user.user_metadata?.claims_admin ? 'admin' : 'user')
+
+                console.log('Determined role:', role)
+
+                // Redirect based on role
+                window.location.replace(role === 'admin' ? '/admin/dashboard' : '/user/dashboard')
             }
         } catch (error) {
             console.error('Sign in error:', error)

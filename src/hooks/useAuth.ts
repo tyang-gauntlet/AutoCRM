@@ -1,34 +1,71 @@
+'use client'
+
 import { useCallback, useEffect, useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useRouter } from 'next/navigation'
 
 export function useAuth() {
-    const [user, setUser] = useState<null | { email?: string }>(null)
+    const [user, setUser] = useState<null | any>(null)
     const [loading, setLoading] = useState(true)
+    const router = useRouter()
     const supabase = createClientComponentClient()
 
-    useEffect(() => {
-        // Check session on mount
-        const checkSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession()
+    // Handle auth state changes
+    const handleAuthStateChange = useCallback(async (event: string, session: any) => {
+        console.log('Auth state changed:', event)
+        if (event === 'SIGNED_OUT') {
+            setUser(null)
+            setLoading(false)
+            // Don't redirect if already on login page
+            if (window.location.pathname !== '/login') {
+                window.location.replace('/login')
+            }
+        } else {
             setUser(session?.user ?? null)
             setLoading(false)
+        }
+    }, [])
+
+    // Initialize auth state
+    useEffect(() => {
+        const checkSession = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession()
+                setUser(session?.user ?? null)
+                setLoading(false)
+
+                // Only redirect if not on a public route
+                const isPublicRoute = ['/login', '/signup', '/forgot-password', '/'].includes(window.location.pathname)
+                if (!session && !isPublicRoute) {
+                    window.location.replace('/login')
+                }
+            } catch (error) {
+                console.error('Error checking session:', error)
+                setLoading(false)
+            }
         }
 
         checkSession()
 
-        // Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null)
-            setLoading(false)
-        })
-
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange)
         return () => subscription.unsubscribe()
-    }, [supabase.auth])
+    }, [handleAuthStateChange])
 
     const signOut = useCallback(async () => {
-        await supabase.auth.signOut()
-        setUser(null)
-        window.location.replace('/login')
+        try {
+            await supabase.auth.signOut()
+            localStorage.clear()
+            document.cookie.split(";").forEach((c) => {
+                document.cookie = c
+                    .replace(/^ +/, "")
+                    .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/")
+            })
+            setUser(null)
+            window.location.replace('/login')
+        } catch (error) {
+            console.error('Error signing out:', error)
+            window.location.replace('/login')
+        }
     }, [supabase.auth])
 
     return {

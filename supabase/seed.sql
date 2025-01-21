@@ -3,6 +3,7 @@ INSERT INTO auth.users (
     id,
     email,
     raw_user_meta_data,
+    raw_app_meta_data,
     created_at,
     updated_at,
     aud,
@@ -22,7 +23,10 @@ VALUES
   (
     'd0d4dc14-7c31-4c26-87fa-31e0c0f40c91',
     'admin@example.com',
-    jsonb_build_object('full_name', 'Admin User'),
+    jsonb_build_object(
+        'full_name', 'Admin User'
+    ),
+    jsonb_build_object('role', 'admin'),
     now(),
     now(),
     'authenticated',
@@ -41,7 +45,10 @@ VALUES
   (
     'e16c304f-87f9-4d4c-a5c8-26a551a4c425',
     'user@example.com',
-    jsonb_build_object('full_name', 'Regular User'),
+    jsonb_build_object(
+        'full_name', 'Regular User'
+    ),
+    jsonb_build_object('role', 'user'),
     now(),
     now(),
     'authenticated',
@@ -126,3 +133,15 @@ VALUES
 UPDATE auth.users
 SET email_confirmed_at = CURRENT_TIMESTAMP
 WHERE email IN ('admin@example.com', 'user@example.com');
+
+-- Add this after all inserts to force metadata sync
+DO $$
+BEGIN
+  -- Force trigger execution for all profiles
+  UPDATE public.profiles 
+  SET updated_at = NOW()
+  WHERE id IN (
+    'd0d4dc14-7c31-4c26-87fa-31e0c0f40c91',
+    'e16c304f-87f9-4d4c-a5c8-26a551a4c425'
+  );
+END $$;
