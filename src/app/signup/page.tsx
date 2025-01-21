@@ -17,8 +17,8 @@ export default function SignUpPage() {
         try {
             await signUp(email, password)
             setError('Check your email for the confirmation link')
-        } catch (error) {
-            setError('Error creating account')
+        } catch (error: any) {
+            setError(error?.message || 'Error creating account')
             console.error(error)
         }
     }
