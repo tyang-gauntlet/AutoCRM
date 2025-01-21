@@ -113,24 +113,122 @@ export type Database = {
           created_at: string
           full_name: string | null
           id: string
-          role: string | null
+          role: string
           updated_at: string
         }
         Insert: {
           created_at?: string
           full_name?: string | null
           id: string
-          role?: string | null
+          role?: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           full_name?: string | null
           id?: string
-          role?: string | null
+          role?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      ticket_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_ai: boolean | null
+          metadata: Json | null
+          sender_id: string | null
+          ticket_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_ai?: boolean | null
+          metadata?: Json | null
+          sender_id?: string | null
+          ticket_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_ai?: boolean | null
+          metadata?: Json | null
+          sender_id?: string | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tickets: {
+        Row: {
+          ai_handled: boolean | null
+          assigned_to: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          description: string
+          id: string
+          metadata: Json | null
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          ai_handled?: boolean | null
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          description: string
+          id?: string
+          metadata?: Json | null
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          ai_handled?: boolean | null
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          description?: string
+          id?: string
+          metadata?: Json | null
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

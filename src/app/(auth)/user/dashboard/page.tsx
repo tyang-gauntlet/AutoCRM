@@ -14,8 +14,20 @@ import {
     HelpCircle
 } from 'lucide-react'
 import Link from 'next/link'
+import { useTickets } from '@/hooks/use-tickets'
+import { Badge } from '@/components/ui/badge'
+
+const priorityColors = {
+    low: 'bg-blue-100 text-blue-800',
+    medium: 'bg-yellow-100 text-yellow-800',
+    high: 'bg-orange-100 text-orange-800',
+    urgent: 'bg-red-100 text-red-800'
+} as const
 
 export default function UserDashboard() {
+    const { tickets, loading } = useTickets()
+    const recentTickets = tickets.slice(0, 3) // Show only 3 most recent tickets
+
     return (
         <main className="p-8">
             {/* Welcome Section */}
@@ -43,7 +55,9 @@ export default function UserDashboard() {
                     <p className="text-sm text-muted-foreground mb-4">
                         Create a ticket for complex issues
                     </p>
-                    <Button className="w-full">New Ticket</Button>
+                    <Button className="w-full" asChild>
+                        <Link href="/user/tickets/new">New Ticket</Link>
+                    </Button>
                 </Card>
 
                 <Card className="p-6">
@@ -62,19 +76,37 @@ export default function UserDashboard() {
                 <Card className="p-6">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold">Your Tickets</h3>
-                        <Button variant="ghost" className="gap-2">
-                            View All <ArrowRight className="h-4 w-4" />
+                        <Button variant="ghost" className="gap-2" asChild>
+                            <Link href="/user/tickets">
+                                View All <ArrowRight className="h-4 w-4" />
+                            </Link>
                         </Button>
                     </div>
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                            <div>
-                                <p className="font-medium">Technical Issue #1234</p>
-                                <p className="text-sm text-muted-foreground">Updated 5m ago</p>
-                            </div>
-                            <Button variant="outline" size="sm">View</Button>
-                        </div>
-                        {/* Add more tickets */}
+                        {loading ? (
+                            <p className="text-sm text-muted-foreground">Loading tickets...</p>
+                        ) : recentTickets.length > 0 ? (
+                            recentTickets.map((ticket) => (
+                                <div key={ticket.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-medium">{ticket.title}</p>
+                                            <Badge className={priorityColors[ticket.priority as keyof typeof priorityColors]}>
+                                                {ticket.priority}
+                                            </Badge>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">
+                                            Updated {new Date(ticket.updated_at).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                    <Button variant="outline" size="sm" asChild>
+                                        <Link href={`/user/tickets/${ticket.id}`}>View</Link>
+                                    </Button>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-sm text-muted-foreground">No tickets found</p>
+                        )}
                     </div>
                 </Card>
 
