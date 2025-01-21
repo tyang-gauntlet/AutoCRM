@@ -1,18 +1,103 @@
--- First create users in auth.users
-INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, created_at, updated_at)
+-- First create users in auth.users with all required fields
+INSERT INTO auth.users (
+    id,
+    email,
+    raw_user_meta_data,
+    created_at,
+    updated_at,
+    aud,
+    role,
+    instance_id,
+    email_confirmed_at,
+    encrypted_password,
+    confirmation_token,
+    recovery_token,
+    email_change_token_new,
+    email_change,
+    last_sign_in_at,
+    is_sso_user,
+    deleted_at
+)
 VALUES
-  ('d0d4dc14-7c31-4c26-87fa-31e0c0f40c91', 'admin@example.com', crypt('admin123', gen_salt('bf')), now(), now(), now()),
-  ('e16c304f-87f9-4d4c-a5c8-26a551a4c425', 'user@example.com', crypt('user123', gen_salt('bf')), now(), now(), now());
+  (
+    'd0d4dc14-7c31-4c26-87fa-31e0c0f40c91',
+    'admin@example.com',
+    jsonb_build_object('full_name', 'Admin User'),
+    now(),
+    now(),
+    'authenticated',
+    'authenticated',
+    '00000000-0000-0000-0000-000000000000',
+    now(),
+    crypt('admin123', gen_salt('bf')),
+    encode(gen_random_bytes(32), 'hex'),
+    encode(gen_random_bytes(32), 'hex'),
+    encode(gen_random_bytes(32), 'hex'),
+    'admin@example.com',
+    now(),
+    FALSE,
+    NULL
+  ),
+  (
+    'e16c304f-87f9-4d4c-a5c8-26a551a4c425',
+    'user@example.com',
+    jsonb_build_object('full_name', 'Regular User'),
+    now(),
+    now(),
+    'authenticated',
+    'authenticated',
+    '00000000-0000-0000-0000-000000000000',
+    now(),
+    crypt('user123', gen_salt('bf')),
+    encode(gen_random_bytes(32), 'hex'),
+    encode(gen_random_bytes(32), 'hex'),
+    encode(gen_random_bytes(32), 'hex'),
+    'user@example.com',
+    now(),
+    FALSE,
+    NULL
+  );
 
--- Create identities for the users (fixed with provider_id)
-INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
+-- Create identities for the users
+INSERT INTO auth.identities (
+    id,
+    user_id,
+    identity_data,
+    provider,
+    provider_id,
+    last_sign_in_at,
+    created_at,
+    updated_at
+)
 VALUES
-  ('d0d4dc14-7c31-4c26-87fa-31e0c0f40c91', 'd0d4dc14-7c31-4c26-87fa-31e0c0f40c91', 
-   jsonb_build_object('sub', 'd0d4dc14-7c31-4c26-87fa-31e0c0f40c91', 'email', 'admin@example.com'),
-   'email', 'admin@example.com', now(), now(), now()),
-  ('e16c304f-87f9-4d4c-a5c8-26a551a4c425', 'e16c304f-87f9-4d4c-a5c8-26a551a4c425', 
-   jsonb_build_object('sub', 'e16c304f-87f9-4d4c-a5c8-26a551a4c425', 'email', 'user@example.com'),
-   'email', 'user@example.com', now(), now(), now());
+  (
+    'd0d4dc14-7c31-4c26-87fa-31e0c0f40c91',
+    'd0d4dc14-7c31-4c26-87fa-31e0c0f40c91',
+    jsonb_build_object(
+        'sub', 'd0d4dc14-7c31-4c26-87fa-31e0c0f40c91',
+        'email', 'admin@example.com',
+        'email_verified', true
+    ),
+    'email',
+    'admin@example.com',
+    now(),
+    now(),
+    now()
+  ),
+  (
+    'e16c304f-87f9-4d4c-a5c8-26a551a4c425',
+    'e16c304f-87f9-4d4c-a5c8-26a551a4c425',
+    jsonb_build_object(
+        'sub', 'e16c304f-87f9-4d4c-a5c8-26a551a4c425',
+        'email', 'user@example.com',
+        'email_verified', true
+    ),
+    'email',
+    'user@example.com',
+    now(),
+    now(),
+    now()
+  );
 
 -- Then create profiles for the users
 INSERT INTO public.profiles (id, full_name, role)
@@ -38,3 +123,6 @@ VALUES
 -- Note: The user IDs in the profiles table should match real users created in auth.users
 -- You'll need to create these users through Supabase authentication first
 -- and then use their IDs in this seed file
+UPDATE auth.users
+SET email_confirmed_at = CURRENT_TIMESTAMP
+WHERE email IN ('admin@example.com', 'user@example.com');

@@ -1,26 +1,36 @@
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { supabase } from '@/lib/supabase'
 
-const PUBLIC_ROUTES = ['/login', '/signup', '/forgot-password']
+// Public routes that don't require authentication
+const PUBLIC_ROUTES = ['/login', '/signup', '/forgot-password', '/auth/callback', '/']
 
 export async function middleware(request: NextRequest) {
-    // Get the token from cookie
-    const token = request.cookies.get('sb-access-token')?.value
+    const res = NextResponse.next()
+    const supabase = createMiddlewareClient({ req: request, res })
 
-    // If there's no token and the route isn't public, redirect to login
-    if (!token && !PUBLIC_ROUTES.includes(request.nextUrl.pathname)) {
-        const redirectUrl = request.nextUrl.clone()
-        redirectUrl.pathname = '/login'
-        redirectUrl.searchParams.set('redirectedFrom', request.nextUrl.pathname)
-        return NextResponse.redirect(redirectUrl)
+    // Refresh session if expired
+    const {
+        data: { session },
+    } = await supabase.auth.getSession()
+
+    // Auth condition
+    const isAuthPage = request.nextUrl.pathname.startsWith('/login') ||
+        request.nextUrl.pathname.startsWith('/signup')
+
+    if (session && isAuthPage) {
+        // If logged in and trying to access auth page, redirect to dashboard
+        return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
-    return NextResponse.next()
+    if (!session && !isAuthPage && !request.nextUrl.pathname.startsWith('/auth')) {
+        // If not logged in and trying to access protected page, redirect to login
+        return NextResponse.redirect(new URL('/login', request.url))
+    }
+
+    return res
 }
 
 export const config = {
-    matcher: [
-        '/((?!_next/static|_next/image|favicon.ico|public|api).*)',
-    ],
+    matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 }

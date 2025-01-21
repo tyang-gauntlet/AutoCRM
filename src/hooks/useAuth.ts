@@ -1,22 +1,20 @@
-import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
-import type { User } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export function useAuth() {
-    const router = useRouter()
-    const [user, setUser] = useState<User | null>(null)
+    const [user, setUser] = useState<null | { email?: string }>(null)
     const [loading, setLoading] = useState(true)
+    const supabase = createClientComponentClient()
 
     useEffect(() => {
-        // Check active session
-        const getSession = async () => {
+        // Check session on mount
+        const checkSession = async () => {
             const { data: { session } } = await supabase.auth.getSession()
             setUser(session?.user ?? null)
             setLoading(false)
         }
 
-        getSession()
+        checkSession()
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -24,42 +22,18 @@ export function useAuth() {
             setLoading(false)
         })
 
-        return () => {
-            subscription.unsubscribe()
-        }
-    }, [])
-
-    const signIn = useCallback(async (email: string, password: string) => {
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        })
-        if (error) throw error
-        router.refresh()
-    }, [router])
-
-    const signUp = useCallback(async (email: string, password: string) => {
-        const { error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                emailRedirectTo: `${window.location.origin}/auth/callback`,
-            },
-        })
-        if (error) throw error
-    }, [])
+        return () => subscription.unsubscribe()
+    }, [supabase.auth])
 
     const signOut = useCallback(async () => {
-        const { error } = await supabase.auth.signOut()
-        if (error) throw error
-        router.refresh()
-    }, [router])
+        await supabase.auth.signOut()
+        setUser(null)
+        window.location.replace('/login')
+    }, [supabase.auth])
 
     return {
         user,
         loading,
-        signIn,
-        signUp,
         signOut,
     }
 }
