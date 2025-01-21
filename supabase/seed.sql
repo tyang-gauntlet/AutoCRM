@@ -63,6 +63,28 @@ VALUES
     now(),
     FALSE,
     NULL
+  ),
+  (
+    'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
+    'reviewer@example.com',
+    jsonb_build_object(
+        'full_name', 'Ticket Reviewer'
+    ),
+    jsonb_build_object('role', 'reviewer'),
+    now(),
+    now(),
+    'authenticated',
+    'authenticated',
+    '00000000-0000-0000-0000-000000000000',
+    now(),
+    crypt('reviewer123', gen_salt('bf')),
+    encode(gen_random_bytes(32), 'hex'),
+    encode(gen_random_bytes(32), 'hex'),
+    encode(gen_random_bytes(32), 'hex'),
+    'reviewer@example.com',
+    now(),
+    FALSE,
+    NULL
   );
 
 -- Create identities for the users
@@ -104,13 +126,28 @@ VALUES
     now(),
     now(),
     now()
+  ),
+  (
+    'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
+    'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
+    jsonb_build_object(
+        'sub', 'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
+        'email', 'reviewer@example.com',
+        'email_verified', true
+    ),
+    'email',
+    'reviewer@example.com',
+    now(),
+    now(),
+    now()
   );
 
 -- Then create profiles for the users
 INSERT INTO public.profiles (id, full_name, role)
 VALUES
   ('d0d4dc14-7c31-4c26-87fa-31e0c0f40c91', 'Admin User', 'admin'),
-  ('e16c304f-87f9-4d4c-a5c8-26a551a4c425', 'Regular User', 'user');
+  ('e16c304f-87f9-4d4c-a5c8-26a551a4c425', 'Regular User', 'user'),
+  ('f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f', 'Ticket Reviewer', 'reviewer');
 
 -- Seed data for customers
 INSERT INTO public.customers (id, name, email, phone, company, status)
@@ -127,12 +164,10 @@ VALUES
   ('748d9f7d-7e75-4acd-9302-dddf597b3acb', 'e16c304f-87f9-4d4c-a5c8-26a551a4c425', 'meeting', 'Product demo meeting', '{"location": "virtual", "duration": "30min"}'),
   ('3d53bd74-c4c3-4147-a825-c3d4fae485e7', 'e16c304f-87f9-4d4c-a5c8-26a551a4c425', 'email', 'Service renewal discussion', '{"source": "email", "status": "pending"}');
 
--- Note: The user IDs in the profiles table should match real users created in auth.users
--- You'll need to create these users through Supabase authentication first
--- and then use their IDs in this seed file
+-- Update auth.users confirmation
 UPDATE auth.users
 SET email_confirmed_at = CURRENT_TIMESTAMP
-WHERE email IN ('admin@example.com', 'user@example.com');
+WHERE email IN ('admin@example.com', 'user@example.com', 'reviewer@example.com');
 
 -- Add this after all inserts to force metadata sync
 DO $$
@@ -142,6 +177,7 @@ BEGIN
   SET updated_at = NOW()
   WHERE id IN (
     'd0d4dc14-7c31-4c26-87fa-31e0c0f40c91',
-    'e16c304f-87f9-4d4c-a5c8-26a551a4c425'
+    'e16c304f-87f9-4d4c-a5c8-26a551a4c425',
+    'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f'
   );
 END $$;

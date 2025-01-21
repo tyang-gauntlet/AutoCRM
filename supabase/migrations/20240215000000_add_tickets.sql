@@ -39,14 +39,14 @@ alter table public.tickets enable row level security;
 alter table public.ticket_messages enable row level security;
 
 -- RLS policies for tickets
-create policy "Users can view their own tickets or assigned tickets"
+create policy "Users can view their own tickets or assigned tickets or reviewers can view all"
   on public.tickets for select
   using (
     auth.uid() = created_by 
     or auth.uid() = assigned_to
     or exists (
       select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
+      where id = auth.uid() and (role = 'admin' or role = 'reviewer')
     )
   );
 
@@ -54,14 +54,26 @@ create policy "Users can create tickets"
   on public.tickets for insert
   with check (auth.role() = 'authenticated');
 
-create policy "Users can update their own tickets or assigned tickets"
-  on public.tickets for update
-  using (
+-- Drop existing update policy if it exists
+DROP POLICY IF EXISTS "Reviewers can update any ticket" ON public.tickets;
+
+-- Create a new update policy for tickets
+CREATE POLICY "Ticket update policy"
+  ON public.tickets FOR UPDATE
+  USING (
     auth.uid() = created_by 
-    or auth.uid() = assigned_to
-    or exists (
-      select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
+    OR auth.uid() = assigned_to
+    OR EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE id = auth.uid() AND role IN ('admin', 'reviewer')
+    )
+  )
+  WITH CHECK (
+    auth.uid() = created_by 
+    OR auth.uid() = assigned_to
+    OR EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE id = auth.uid() AND role IN ('admin', 'reviewer')
     )
   );
 
@@ -119,5 +131,13 @@ ALTER TABLE public.tickets
 DROP CONSTRAINT tickets_assigned_to_fkey,
 ADD CONSTRAINT tickets_assigned_to_fkey 
     FOREIGN KEY (assigned_to) 
+    REFERENCES public.profiles(id) 
+    ON DELETE SET NULL;
+
+-- Update the ticket_messages table to reference profiles instead of auth.users
+ALTER TABLE public.ticket_messages 
+DROP CONSTRAINT ticket_messages_sender_id_fkey,
+ADD CONSTRAINT ticket_messages_sender_id_fkey 
+    FOREIGN KEY (sender_id) 
     REFERENCES public.profiles(id) 
     ON DELETE SET NULL; 

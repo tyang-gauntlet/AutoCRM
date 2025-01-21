@@ -11,8 +11,9 @@ export function Header() {
     const { user, signOut } = useAuth()
     const [isSigningOut, setIsSigningOut] = useState(false)
 
-    // Only check app_metadata for role
+    // Check for admin and reviewer roles
     const isAdmin = user?.app_metadata?.role === 'admin'
+    const isReviewer = user?.app_metadata?.role === 'reviewer'
 
     const handleSignOut = async (e: React.MouseEvent) => {
         e.preventDefault()
@@ -34,7 +35,7 @@ export function Header() {
     return (
         <nav className="border-b">
             <div className="flex h-16 items-center px-4">
-                <Link href={isAdmin ? '/admin/dashboard' : '/user/dashboard'}>
+                <Link href={isAdmin ? '/admin/dashboard' : isReviewer ? '/reviewer/dashboard' : '/user/dashboard'}>
                     <h1 className="text-xl font-bold">AutoCRM</h1>
                 </Link>
 
@@ -42,7 +43,7 @@ export function Header() {
                     <div className="text-sm text-muted-foreground mr-4">
                         <span className="font-medium text-foreground">{user.email}</span>
                         <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-                            {isAdmin ? 'Admin' : 'User'}
+                            {isAdmin ? 'Admin' : isReviewer ? 'Reviewer' : 'User'}
                         </span>
                     </div>
                     <Button variant="ghost" size="icon" asChild>

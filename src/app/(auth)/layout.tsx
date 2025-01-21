@@ -27,10 +27,23 @@ export default function AuthLayout({
             const userRole = user.app_metadata?.role || 'user'
             const path = window.location.pathname
 
-            if (userRole === 'admin' && path.startsWith('/user')) {
-                window.location.replace('/admin/dashboard')
-            } else if (userRole === 'user' && path.startsWith('/admin')) {
-                window.location.replace('/user/dashboard')
+            // Updated role-based routing
+            switch (userRole) {
+                case 'admin':
+                    if (path.startsWith('/user') || path.startsWith('/reviewer')) {
+                        window.location.replace('/admin/dashboard')
+                    }
+                    break
+                case 'reviewer':
+                    if (path.startsWith('/user') || path.startsWith('/admin')) {
+                        window.location.replace('/reviewer/dashboard')
+                    }
+                    break
+                case 'user':
+                    if (path.startsWith('/admin') || path.startsWith('/reviewer')) {
+                        window.location.replace('/user/dashboard')
+                    }
+                    break
             }
         }
     }, [user])
