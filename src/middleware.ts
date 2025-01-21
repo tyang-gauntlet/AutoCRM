@@ -9,23 +9,20 @@ export async function middleware(request: NextRequest) {
     const res = NextResponse.next()
     const supabase = createMiddlewareClient({ req: request, res })
 
-    // Refresh session if expired
     const {
         data: { session },
     } = await supabase.auth.getSession()
 
-    // Auth condition
-    const isAuthPage = request.nextUrl.pathname.startsWith('/login') ||
-        request.nextUrl.pathname.startsWith('/signup')
+    const { pathname } = request.nextUrl
 
-    if (session && isAuthPage) {
-        // If logged in and trying to access auth page, redirect to dashboard
-        return NextResponse.redirect(new URL('/dashboard', request.url))
+    // If user is not authenticated and trying to access protected routes
+    if (!session && pathname.startsWith('/dashboard')) {
+        return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    if (!session && !isAuthPage && !request.nextUrl.pathname.startsWith('/auth')) {
-        // If not logged in and trying to access protected page, redirect to login
-        return NextResponse.redirect(new URL('/login', request.url))
+    // If user is authenticated and trying to access login
+    if (session && pathname === '/login') {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
     return res

@@ -31,7 +31,7 @@ export default function LoginPage() {
             if (error) throw error
 
             if (data?.session) {
-                // Redirect after successful sign in
+                // Redirect to the dashboard page inside (auth) folder
                 window.location.replace('/dashboard')
             }
         } catch (error) {
