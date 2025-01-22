@@ -13,33 +13,14 @@ import {
 import Link from 'next/link'
 import { useReviewerTickets } from '@/hooks/use-reviewer-tickets'
 import { Badge } from '@/components/ui/badge'
-
-const priorityColors = {
-    low: 'bg-blue-100 text-blue-800',
-    medium: 'bg-yellow-100 text-yellow-800',
-    high: 'bg-orange-100 text-orange-800',
-    urgent: 'bg-red-100 text-red-800'
-} as const
-
-const statusColors = {
-    open: 'bg-green-100 text-green-800',
-    in_progress: 'bg-blue-100 text-blue-800',
-    resolved: 'bg-gray-100 text-gray-800',
-    closed: 'bg-red-100 text-red-800'
-} as const
+import { priorityColors, statusColors } from '@/constants/ticket'
 
 export default function ReviewerDashboard() {
     const { tickets, loading, assignTicket } = useReviewerTickets()
 
-    // Add console logs to debug
-    console.log('All tickets:', tickets)
-
     // Modify filters to check for unassigned tickets
     const openTickets = tickets.filter(t => t.status === 'open' && !t.assigned_to)
     const inProgressTickets = tickets.filter(t => t.assigned_to)
-
-    console.log('Open tickets:', openTickets)
-    console.log('In Progress tickets:', inProgressTickets)
 
     const handleAssign = async (ticketId: string) => {
         const success = await assignTicket(ticketId)

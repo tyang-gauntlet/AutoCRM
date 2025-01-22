@@ -3,7 +3,7 @@
 case "$1" in
     "reset")
         echo "Resetting database..."
-        npx supabase db reset
+        npx supabase db reset --debug
         ;;
     "push")
         echo "Pushing changes to production..."

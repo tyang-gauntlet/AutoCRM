@@ -6,7 +6,7 @@ Develop a Customer Relationship Management (CRM) system to manage customer data,
 
 - NextJS 14 / React 18
 - TailwindCSS
-- Supabase (USE SUPABASE-JS SDK PACKAGE NOT AUTH-HELPERS-NEXTJS PACKAGE)
+- Supabase 
 - Shadcn (NOT SHADCN UI) / Radix UI
 - Lucid Icons
 - AWS Amplify

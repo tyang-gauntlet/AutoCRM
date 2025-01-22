@@ -46,22 +46,15 @@ drop policy if exists "Users can view their own profile" on public.profiles;
 drop policy if exists "Profiles access policy" on public.profiles;
 drop policy if exists "Profiles update policy" on public.profiles;
 
--- Create a function to check if user is admin
-create or replace function is_admin()
-returns boolean
+-- Create a materialized role check function
+create or replace function get_user_role(user_id uuid)
+returns text
 security definer
 set search_path = public
-language plpgsql
+language sql
+stable
 as $$
-declare
-    user_role text;
-begin
-    select role into user_role
-    from public.profiles
-    where id = auth.uid();
-    
-    return user_role = 'admin';
-end;
+    select role from public.profiles where id = user_id;
 $$;
 
 -- Create simplified RLS policies
@@ -70,7 +63,7 @@ create policy "Profiles select policy"
   using (
     auth.uid() = id  -- Can see own profile
     OR 
-    (select role from public.profiles where id = auth.uid()) = 'admin'  -- Admin can see all profiles
+    get_user_role(auth.uid()) = 'admin'  -- Admin can see all profiles
   );
 
 create policy "Profiles update policy"
@@ -78,7 +71,7 @@ create policy "Profiles update policy"
   using (
     auth.uid() = id  -- Can update own profile
     OR 
-    (select role from public.profiles where id = auth.uid()) = 'admin'  -- Admin can update all profiles
+    get_user_role(auth.uid()) = 'admin'  -- Admin can update all profiles
   );
 
 -- Customers policies

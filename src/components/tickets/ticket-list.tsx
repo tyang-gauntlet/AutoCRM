@@ -1,70 +1,37 @@
 'use client'
 
+import React from 'react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table'
-import { useTickets } from '@/hooks/use-tickets'
+import { Separator } from '@/components/ui/separator'
+import Link from 'next/link'
+import type { TicketWithDetails } from '@/types/tickets'
+import { priorityColors, statusColors } from '@/constants/ticket'
+import { TicketListItem } from './ticket-list-item'
 
-const priorityColors = {
-    low: 'bg-blue-100 text-blue-800',
-    medium: 'bg-yellow-100 text-yellow-800',
-    high: 'bg-orange-100 text-orange-800',
-    urgent: 'bg-red-100 text-red-800'
-} as const
+interface TicketListProps {
+    tickets: TicketWithDetails[]
+    baseUrl: string
+    isReviewer?: boolean
+}
 
-const statusColors = {
-    open: 'bg-green-100 text-green-800',
-    in_progress: 'bg-blue-100 text-blue-800',
-    resolved: 'bg-gray-100 text-gray-800',
-    closed: 'bg-red-100 text-red-800'
-} as const
-
-export function TicketList() {
-    const { tickets, loading } = useTickets()
-
-    if (loading) {
-        return <div>Loading...</div>
-    }
-
+export function TicketList({ tickets, baseUrl, isReviewer }: TicketListProps) {
     return (
-        <Card>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Title</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Priority</TableHead>
-                        <TableHead>Assigned To</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {tickets.map((ticket) => (
-                        <TableRow key={ticket.id}>
-                            <TableCell>{ticket.title}</TableCell>
-                            <TableCell>{ticket.customer?.name || 'N/A'}</TableCell>
-                            <TableCell>
-                                <Badge className={statusColors[ticket.status as keyof typeof statusColors]}>
-                                    {ticket.status}
-                                </Badge>
-                            </TableCell>
-                            <TableCell>
-                                <Badge className={priorityColors[ticket.priority as keyof typeof priorityColors]}>
-                                    {ticket.priority}
-                                </Badge>
-                            </TableCell>
-                            <TableCell>{ticket.assigned?.full_name || 'Unassigned'}</TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </Card>
+        <div className="space-y-4">
+            {tickets.map((ticket) => (
+                <Card key={ticket.id} className="p-4 hover:bg-muted/50 transition-colors">
+                    <TicketListItem
+                        ticket={ticket}
+                        href={`${baseUrl}/${ticket.id}`}
+                        showAssignment={isReviewer}
+                    />
+                </Card>
+            ))}
+            {tickets.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                    No tickets found
+                </div>
+            )}
+        </div>
     )
 } 

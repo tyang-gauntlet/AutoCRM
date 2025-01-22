@@ -16,13 +16,7 @@ import {
 import Link from 'next/link'
 import { useTickets } from '@/hooks/use-tickets'
 import { Badge } from '@/components/ui/badge'
-
-const priorityColors = {
-    low: 'bg-blue-100 text-blue-800',
-    medium: 'bg-yellow-100 text-yellow-800',
-    high: 'bg-orange-100 text-orange-800',
-    urgent: 'bg-red-100 text-red-800'
-} as const
+import { priorityColors } from '@/constants/ticket'
 
 export default function UserDashboard() {
     const { tickets, loading } = useTickets()
