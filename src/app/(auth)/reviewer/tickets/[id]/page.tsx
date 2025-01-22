@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select'
 import { useTicketDetails } from '@/hooks/use-ticket-details'
 import { TicketDetail } from '@/components/tickets/ticket-detail'
+import type { TicketWithDetails } from '@/types/tickets'
 
 export default function ReviewerTicketDetail() {
     const params = useParams<{ id: string }>()
@@ -21,6 +22,24 @@ export default function ReviewerTicketDetail() {
 
     if (loading || !ticket) {
         return <div>Loading...</div>
+    }
+
+    // Transform ticket to match TicketWithDetails type
+    const ticketWithDetails: TicketWithDetails = {
+        id: ticket.id,
+        title: ticket.title,
+        description: ticket.description,
+        priority: ticket.priority,
+        status: ticket.status,
+        created_at: ticket.created_at,
+        updated_at: ticket.updated_at,
+        customer: ticket.customer ? {
+            name: ticket.customer.name,
+            email: undefined // Add email if available in your data
+        } : undefined,
+        assigned: ticket.assigned?.full_name ? {
+            full_name: ticket.assigned.full_name
+        } : undefined
     }
 
     const reviewerControls = (
@@ -49,7 +68,7 @@ export default function ReviewerTicketDetail() {
 
     return (
         <TicketDetail
-            ticket={ticket}
+            ticket={ticketWithDetails}
             messages={messages}
             sendMessage={sendMessage}
             isReviewer={true}
