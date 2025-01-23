@@ -1,3 +1,5 @@
+'use client'
+
 import React from 'react'
 import type { TicketMessage } from '@/types/tickets'
 
@@ -7,7 +9,7 @@ export function TicketMessage({ sender, content, created_at }: TicketMessageProp
     return (
         <div className="space-y-1">
             <div className="flex items-center gap-2 text-sm">
-                <span className="font-medium">{sender?.full_name || 'Unknown'}</span>
+                <span className="font-medium">{sender?.email || 'Unknown'}</span>
                 <span>•</span>
                 <sub className="text-muted-foreground">
                     {new Date(created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

@@ -19,6 +19,7 @@ type Message = {
     sender_id: string
     sender: {
         full_name: string
+        email: string
     }
 }
 
@@ -57,18 +58,43 @@ export function useTicketDetails(ticketId: string, role?: 'reviewer' | 'user'): 
             console.log('Ticket data received:', ticketData)
             setTicket(ticketData as Ticket)
 
-            const { data: messagesData, error: messagesError } = await supabase
+            // First get all messages to collect sender IDs
+            const { data: messages, error: messagesError } = await supabase
                 .from('ticket_messages')
                 .select(`
                     *,
-                    sender:profiles(full_name)
+                    sender:profiles(
+                        id,
+                        full_name
+                    )
                 `)
                 .eq('ticket_id', ticketId)
                 .order('created_at', { ascending: true })
 
             if (messagesError) throw messagesError
 
-            setMessages(messagesData as Message[])
+            // Get unique sender IDs
+            const senderIds = Array.from(new Set(
+                messages?.map(msg => msg.sender_id).filter((id): id is string => id !== null)
+            ))
+
+            // Get emails for all senders
+            const { data: emailData } = await supabase
+                .rpc('get_user_emails', {
+                    user_ids: senderIds
+                })
+
+            // Map the emails to the messages
+            const emailMap = new Map(emailData?.map(u => [u.id, u.email]) || [])
+            const messagesWithEmails = messages?.map(msg => ({
+                ...msg,
+                sender: {
+                    ...msg.sender,
+                    email: emailMap.get(msg.sender_id || '') || 'Unknown'
+                }
+            }))
+
+            setMessages(messagesWithEmails as Message[])
         } catch (error) {
             console.error('Error fetching data:', error)
         } finally {
@@ -145,7 +171,14 @@ export function useTicketDetails(ticketId: string, role?: 'reviewer' | 'user'): 
 
     useEffect(() => {
         console.log('Setting up subscriptions for ticket:', ticketId)
-        fetchTicket()
+        let mounted = true
+
+        const fetchData = async () => {
+            if (!mounted) return
+            await fetchTicket()
+        }
+
+        fetchData()
 
         // Subscribe to ticket changes
         const ticketChannel = supabase
@@ -159,25 +192,8 @@ export function useTicketDetails(ticketId: string, role?: 'reviewer' | 'user'): 
                 },
                 async (payload) => {
                     console.log('Ticket update received:', payload)
-                    if (payload.new) {
-                        // Immediately update basic fields
-                        setTicket(current => {
-                            if (!current) return null
-                            console.log('Updating ticket state:', {
-                                current,
-                                new: payload.new
-                            })
-                            return {
-                                ...current,
-                                ...payload.new,
-                                customer: current.customer,
-                                assigned: current.assigned
-                            } as Ticket
-                        })
-
-                        // Then fetch fresh data
-                        await fetchTicket()
-                    }
+                    if (!mounted) return
+                    await fetchData()
                 }
             )
             .subscribe((status) => {
@@ -194,9 +210,47 @@ export function useTicketDetails(ticketId: string, role?: 'reviewer' | 'user'): 
                     table: 'ticket_messages',
                     filter: `ticket_id=eq.${ticketId}`
                 },
-                (payload) => {
+                async (payload) => {
                     console.log('Message received:', payload)
-                    setMessages(current => [...current, payload.new as Message])
+                    if (!mounted) return
+                    if (!payload.new.sender_id) return
+
+                    const { data: messageData, error } = await supabase
+                        .rpc('get_user_emails', {
+                            user_ids: [payload.new.sender_id]
+                        })
+                        .then(async ({ data: emailData }) => {
+                            const { data, error } = await supabase
+                                .from('ticket_messages')
+                                .select(`
+                                    *,
+                                    sender:profiles(
+                                        id,
+                                        full_name
+                                    )
+                                `)
+                                .eq('id', payload.new.id)
+                                .single()
+
+                            if (error) throw error
+
+                            // Map the email to the message
+                            const email = emailData?.[0]?.email || 'Unknown'
+                            return {
+                                data: {
+                                    ...data,
+                                    sender: {
+                                        ...data.sender,
+                                        email
+                                    }
+                                },
+                                error: null
+                            }
+                        })
+
+                    if (!error && messageData) {
+                        setMessages(current => [...current, messageData as Message])
+                    }
                 }
             )
             .subscribe((status) => {
@@ -205,10 +259,13 @@ export function useTicketDetails(ticketId: string, role?: 'reviewer' | 'user'): 
 
         return () => {
             console.log('Cleaning up subscriptions for ticket:', ticketId)
+            mounted = false
+            ticketChannel.unsubscribe()
+            messageChannel.unsubscribe()
             supabase.removeChannel(ticketChannel)
             supabase.removeChannel(messageChannel)
         }
-    }, [supabase, ticketId, fetchTicket])
+    }, [ticketId, supabase])
 
     // Return different actions based on role
     return {

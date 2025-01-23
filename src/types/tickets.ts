@@ -1,11 +1,13 @@
 import type { TicketPriority, TicketStatus } from '@/constants/ticket'
 
-export interface TicketMessage {
+export type TicketMessage = {
     id: string
     content: string
     created_at: string
+    sender_id: string
     sender: {
         full_name: string
+        email: string
     }
 }
 

@@ -14,6 +14,12 @@ import Link from 'next/link'
 import { useReviewerTickets } from '@/hooks/use-reviewer-tickets'
 import { Badge } from '@/components/ui/badge'
 import { priorityColors, statusColors } from '@/constants/ticket'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 export default function ReviewerDashboard() {
     const { tickets, loading, assignTicket } = useReviewerTickets()
@@ -32,39 +38,53 @@ export default function ReviewerDashboard() {
 
     return (
         <main className="p-8">
-            {/* Welcome Section */}
-            <div className="mb-8">
+            {/* Welcome Section with inline Stats */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
                 <h2 className="text-3xl font-bold tracking-tight">Ticket Review Dashboard</h2>
-                <p className="text-muted-foreground">
-                    Manage and review support tickets
-                </p>
-            </div>
 
-            {/* Quick Stats */}
-            <div className="grid gap-6 md:grid-cols-4 mb-8">
-                <Card className="p-6">
-                    <AlertCircle className="h-8 w-8 mb-4 text-yellow-500" />
-                    <h3 className="text-lg font-semibold mb-2">Open Tickets</h3>
-                    <p className="text-3xl font-bold">{openTickets.length}</p>
-                </Card>
+                <div className="flex flex-wrap gap-6 mt-4 md:mt-0">
+                    <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1.5 cursor-help">
+                                    <AlertCircle className="h-4 w-4 text-yellow-500" />
+                                    <span className="text-lg font-medium tabular-nums">{openTickets.length}</span>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">Open tickets</TooltipContent>
+                        </Tooltip>
 
-                <Card className="p-6">
-                    <Clock className="h-8 w-8 mb-4 text-blue-500" />
-                    <h3 className="text-lg font-semibold mb-2">In Progress</h3>
-                    <p className="text-3xl font-bold">{inProgressTickets.length}</p>
-                </Card>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1.5 cursor-help">
+                                    <Clock className="h-4 w-4 text-blue-500" />
+                                    <span className="text-lg font-medium tabular-nums">{inProgressTickets.length}</span>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">In progress</TooltipContent>
+                        </Tooltip>
 
-                <Card className="p-6">
-                    <CheckCircle2 className="h-8 w-8 mb-4 text-green-500" />
-                    <h3 className="text-lg font-semibold mb-2">Response Time</h3>
-                    <p className="text-3xl font-bold">2.5h</p>
-                </Card>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1.5 cursor-help">
+                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                    <span className="text-lg font-medium tabular-nums">2.5h</span>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">Average response time</TooltipContent>
+                        </Tooltip>
 
-                <Card className="p-6">
-                    <MessageSquare className="h-8 w-8 mb-4 text-purple-500" />
-                    <h3 className="text-lg font-semibold mb-2">Total Active</h3>
-                    <p className="text-3xl font-bold">{tickets.length}</p>
-                </Card>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1.5 cursor-help">
+                                    <MessageSquare className="h-4 w-4 text-purple-500" />
+                                    <span className="text-lg font-medium tabular-nums">{tickets.length}</span>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">Active tickets</TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </div>
             </div>
 
             {/* Tickets Grid */}
