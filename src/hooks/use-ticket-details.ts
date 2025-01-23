@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import type { Database } from '@/lib/database.types'
+import type { Database } from '@/types/database'
 
 type TicketPriority = 'low' | 'medium' | 'high' | 'urgent'
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed'

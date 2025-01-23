@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,7 +16,6 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
 } from "@/components/ui/select"
 import { Input } from '@/components/ui/input'
 import {
@@ -28,7 +27,8 @@ import {
     UserCheck
 } from 'lucide-react'
 import { useUsers } from '@/hooks/useUsers'
-import type { UserRole } from '@/types/supabase'
+
+type UserRole = 'admin' | 'user' | 'reviewer'
 
 export default function UsersManagement() {
     const { users, loading, updateUserRole } = useUsers()
@@ -40,9 +40,9 @@ export default function UsersManagement() {
             user.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
     })
 
-    const handleRoleChange = async (userId: string, newRole: UserRole) => {
+    const handleRoleChange = async (userId: string, newRole: string) => {
         console.log('Changing role:', userId, newRole)
-        const { error } = await updateUserRole(userId, newRole)
+        const { error } = await updateUserRole(userId, newRole as UserRole)
         if (error) {
             console.error('Failed to update role:', error)
         }
@@ -123,7 +123,7 @@ export default function UsersManagement() {
                                     <TableCell>
                                         <Select
                                             value={user.role}
-                                            onValueChange={(value: UserRole) => handleRoleChange(user.id, value)}
+                                            onValueChange={(value) => handleRoleChange(user.id, value)}
                                         >
                                             <SelectTrigger className="w-[120px]">
                                                 <div className="flex items-center gap-2">

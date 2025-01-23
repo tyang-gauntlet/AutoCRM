@@ -11,7 +11,6 @@ export function useAuth() {
 
     // Handle auth state changes
     const handleAuthStateChange = useCallback(async (event: AuthChangeEvent, session: Session | null) => {
-        console.log('Auth state changed:', event)
         if (event === 'SIGNED_OUT') {
             setUser(null)
             setLoading(false)
@@ -29,17 +28,19 @@ export function useAuth() {
     useEffect(() => {
         const checkSession = async () => {
             try {
-                const { data: { session } } = await supabase.auth.getSession()
+                const { data: { session }, error } = await supabase.auth.getSession()
+
                 setUser(session?.user ?? null)
                 setLoading(false)
 
                 // Only redirect if not on a public route
                 const isPublicRoute = ['/login', '/signup', '/forgot-password', '/'].includes(window.location.pathname)
+
                 if (!session && !isPublicRoute) {
                     window.location.replace('/login')
                 }
             } catch (error) {
-                console.error('Error checking session:', error)
+                console.error('[useAuth] Error checking session:', error)
                 setLoading(false)
             }
         }
@@ -47,7 +48,9 @@ export function useAuth() {
         checkSession()
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange)
-        return () => subscription.unsubscribe()
+        return () => {
+            subscription.unsubscribe()
+        }
     }, [handleAuthStateChange, supabase.auth])
 
     const signOut = useCallback(async () => {
@@ -62,7 +65,7 @@ export function useAuth() {
             setUser(null)
             window.location.replace('/login')
         } catch (error) {
-            console.error('Error signing out:', error)
+            console.error('[useAuth] Error signing out:', error)
             window.location.replace('/login')
         }
     }, [supabase.auth])
@@ -77,6 +80,7 @@ export function useAuth() {
         })
 
         if (error) {
+            console.error('[useAuth] Signup error:', error)
             throw error
         }
 

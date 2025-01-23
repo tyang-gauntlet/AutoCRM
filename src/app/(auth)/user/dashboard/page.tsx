@@ -60,7 +60,9 @@ export default function UserDashboard() {
                     <p className="text-sm text-muted-foreground mb-4">
                         Browse our knowledge base
                     </p>
-                    <Button className="w-full">Search</Button>
+                    <Button className="w-full" asChild>
+                        <Link href="/user/kb">Search</Link>
+                    </Button>
                 </Card>
             </div>
 

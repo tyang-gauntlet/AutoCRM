@@ -9,9 +9,15 @@ export async function GET(request: NextRequest) {
 
     if (code) {
         const supabase = createRouteHandlerClient({ cookies })
-        await supabase.auth.exchangeCodeForSession(code)
+        const { data: { session } } = await supabase.auth.exchangeCodeForSession(code)
+
+        // Get user role and redirect accordingly
+        const userRole = session?.user?.app_metadata?.role || 'user'
+        const redirectPath = userRole === 'admin' ? '/admin/dashboard' : '/user/dashboard'
+
+        return NextResponse.redirect(new URL(redirectPath, request.url))
     }
 
-    // URL to redirect to after sign in process completes
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    // If no code, redirect to login
+    return NextResponse.redirect(new URL('/login', request.url))
 }

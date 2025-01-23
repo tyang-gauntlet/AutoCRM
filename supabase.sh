@@ -11,8 +11,8 @@ case "$1" in
         ;;
     "types")
         echo "Generating TypeScript types..."
-        rm -f src/lib/database.types.ts
-        npx supabase gen types typescript --local > src/lib/database.types.ts
+        rm -f src/types/database.ts
+        npx supabase gen types typescript --local > src/types/database.ts
         ;;
     *)
         echo "Usage: ./supabase.sh [reset|push|types]"

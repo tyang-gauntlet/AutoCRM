@@ -108,6 +108,97 @@ export type Database = {
           },
         ]
       }
+      kb_articles: {
+        Row: {
+          category_id: string | null
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          metadata: Json | null
+          search_vector: unknown | null
+          slug: string
+          status: string | null
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json | null
+          search_vector?: unknown | null
+          slug: string
+          status?: string | null
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json | null
+          search_vector?: unknown | null
+          slug?: string
+          status?: string | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_articles_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "kb_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kb_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          parent_id: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          parent_id?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          parent_id?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "kb_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -260,9 +351,77 @@ export type Database = {
           email: string
         }[]
       }
-      is_admin: {
+      get_user_role: {
+        Args: {
+          user_id: string
+        }
+        Returns: string
+      }
+      gtrgm_compress: {
+        Args: {
+          "": unknown
+        }
+        Returns: unknown
+      }
+      gtrgm_decompress: {
+        Args: {
+          "": unknown
+        }
+        Returns: unknown
+      }
+      gtrgm_in: {
+        Args: {
+          "": unknown
+        }
+        Returns: unknown
+      }
+      gtrgm_options: {
+        Args: {
+          "": unknown
+        }
+        Returns: undefined
+      }
+      gtrgm_out: {
+        Args: {
+          "": unknown
+        }
+        Returns: unknown
+      }
+      search_kb_articles: {
+        Args: {
+          search_query: string
+          category_slug?: string
+          limit_val?: number
+          offset_val?: number
+        }
+        Returns: {
+          id: string
+          title: string
+          slug: string
+          content: string
+          category_id: string
+          status: string
+          metadata: Json
+          created_at: string
+          updated_at: string
+          search_rank: number
+        }[]
+      }
+      set_limit: {
+        Args: {
+          "": number
+        }
+        Returns: number
+      }
+      show_limit: {
         Args: Record<PropertyKey, never>
-        Returns: boolean
+        Returns: number
+      }
+      show_trgm: {
+        Args: {
+          "": string
+        }
+        Returns: string[]
       }
     }
     Enums: {

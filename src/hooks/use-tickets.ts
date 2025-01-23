@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import type { Database } from '@/lib/database.types'
+import type { Database } from '@/types/database'
 
 export type Ticket = Database['public']['Tables']['tickets']['Row'] & {
     customer: Pick<Database['public']['Tables']['customers']['Row'], 'name'> | null

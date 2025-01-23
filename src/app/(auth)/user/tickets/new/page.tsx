@@ -13,8 +13,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import type { Database } from '@/lib/database.types'
+import type { Database } from '@/types/database'
+import { supabase } from '@/lib/supabase'
 
 export default function NewTicket() {
     const router = useRouter()
@@ -30,7 +30,6 @@ export default function NewTicket() {
         setLoading(true)
 
         try {
-            const supabase = createClientComponentClient<Database>()
             const { data: { session } } = await supabase.auth.getSession()
 
             if (!session) {

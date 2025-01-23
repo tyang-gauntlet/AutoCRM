@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import type { Database } from '@/lib/database.types'
+import type { Database } from '@/types/database'
 
 export type Ticket = Database['public']['Tables']['tickets']['Row'] & {
     customer: Pick<Database['public']['Tables']['customers']['Row'], 'name'> | null
@@ -23,6 +23,7 @@ export function useReviewerTickets() {
                 customer:customers(name),
                 assigned:profiles(full_name)
             `)
+            .eq('assigned_to', session.user.id)
             .order('created_at', { ascending: false })
 
         if (!error && data) {
@@ -42,7 +43,8 @@ export function useReviewerTickets() {
                 {
                     event: '*',
                     schema: 'public',
-                    table: 'tickets'
+                    table: 'tickets',
+                    filter: `assigned_to=eq.${supabase.auth.getUser()}`
                 },
                 () => fetchTickets()
             )

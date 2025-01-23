@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { Database, UserRole } from '@/types/supabase'
+import type { Database } from '@/types/database'
 
+type UserRole = 'admin' | 'user' | 'reviewer'
 type Profile = Database['public']['Tables']['profiles']['Row']
 
 export function useUsers() {
