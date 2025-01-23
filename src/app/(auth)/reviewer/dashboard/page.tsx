@@ -9,6 +9,11 @@ import {
     CheckCircle2,
     AlertCircle,
     ArrowRight,
+    CheckCircle,
+    XCircle,
+    Clock3,
+    AlertTriangle,
+    Search,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useReviewerTickets } from '@/hooks/use-reviewer-tickets'
@@ -20,9 +25,24 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
+import { TicketDetail } from '@/components/tickets/ticket-detail'
+import { useTicketDetails } from '@/hooks/use-ticket-details'
+import type { TicketWithDetails } from '@/types/tickets'
+import { ReviewerTicketView } from '@/components/tickets/reviewer-ticket-view'
 
 export default function ReviewerDashboard() {
     const { tickets, loading, assignTicket } = useReviewerTickets()
+    const [searchQuery, setSearchQuery] = React.useState("")
+    const [selectedTickets, setSelectedTickets] = React.useState<string[]>([])
+    const [selectedTicketId, setSelectedTicketId] = React.useState<string | null>(null)
+
+    // Get ticket details for the selected ticket
+    const { ticket: selectedTicket, messages, sendMessage } = useTicketDetails(
+        selectedTicketId || undefined,
+        'reviewer'
+    )
 
     // Modify filters to check for unassigned tickets
     const openTickets = tickets.filter(t => t.status === 'open' && !t.assigned_to)
@@ -31,155 +51,195 @@ export default function ReviewerDashboard() {
     const handleAssign = async (ticketId: string) => {
         const success = await assignTicket(ticketId)
         if (!success) {
-            // You might want to show an error toast here
             console.error('Failed to assign ticket')
         }
     }
 
+    const filteredTickets = tickets.filter(ticket =>
+        ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ticket.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ticket.priority.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+
+    // Transform ticket to match TicketWithDetails type
+    const selectedTicketWithDetails: TicketWithDetails | null = selectedTicket ? {
+        id: selectedTicket.id,
+        title: selectedTicket.title,
+        description: selectedTicket.description,
+        priority: selectedTicket.priority,
+        status: selectedTicket.status,
+        created_at: selectedTicket.created_at,
+        updated_at: selectedTicket.updated_at,
+        customer: selectedTicket.customer ? {
+            name: selectedTicket.customer.name || undefined,
+            email: selectedTicket.customer?.email || undefined
+        } : undefined,
+        assigned: selectedTicket.assigned?.full_name ? {
+            full_name: selectedTicket.assigned.full_name
+        } : undefined,
+        creator: selectedTicket.creator?.email ? {
+            email: selectedTicket.creator.email
+        } : undefined
+    } : null
+
     return (
-        <main className="p-8">
-            {/* Welcome Section with inline Stats */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-                <h2 className="text-3xl font-bold tracking-tight">Ticket Review Dashboard</h2>
+        <>
+            {/* Sidebar with ticket list */}
+            <div className="w-[400px] flex flex-col border-r">
+                {/* Header with Stats */}
+                <div className="flex items-center justify-between p-4 border-b">
+                    <div className="flex items-center space-x-4">
+                        <h2 className="text-lg font-semibold">Tickets</h2>
+                        <div className="flex items-center space-x-2">
+                            <TooltipProvider delayDuration={100}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1.5 cursor-help">
+                                            <AlertCircle className="h-4 w-4 text-yellow-500" />
+                                            <span className="text-sm font-medium tabular-nums">{openTickets.length}</span>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">Open tickets</TooltipContent>
+                                </Tooltip>
 
-                <div className="flex flex-wrap gap-6 mt-4 md:mt-0">
-                    <TooltipProvider delayDuration={100}>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1.5 cursor-help">
-                                    <AlertCircle className="h-4 w-4 text-yellow-500" />
-                                    <span className="text-lg font-medium tabular-nums">{openTickets.length}</span>
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">Open tickets</TooltipContent>
-                        </Tooltip>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1.5 cursor-help">
+                                            <Clock className="h-4 w-4 text-blue-500" />
+                                            <span className="text-sm font-medium tabular-nums">{inProgressTickets.length}</span>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">In progress</TooltipContent>
+                                </Tooltip>
 
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1.5 cursor-help">
-                                    <Clock className="h-4 w-4 text-blue-500" />
-                                    <span className="text-lg font-medium tabular-nums">{inProgressTickets.length}</span>
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">In progress</TooltipContent>
-                        </Tooltip>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1.5 cursor-help">
+                                            <MessageSquare className="h-4 w-4 text-purple-500" />
+                                            <span className="text-sm font-medium tabular-nums">{tickets.length}</span>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">Total tickets</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
+                    </div>
+                </div>
 
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1.5 cursor-help">
-                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                    <span className="text-lg font-medium tabular-nums">2.5h</span>
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">Average response time</TooltipContent>
-                        </Tooltip>
+                {/* Search */}
+                <div className="p-4 border-b">
+                    <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search tickets..."
+                            className="pl-8"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                </div>
 
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1.5 cursor-help">
-                                    <MessageSquare className="h-4 w-4 text-purple-500" />
-                                    <span className="text-lg font-medium tabular-nums">{tickets.length}</span>
+                {/* Tickets List */}
+                <div className="flex-1 overflow-auto">
+                    <div className="divide-y">
+                        {loading ? (
+                            <p className="text-sm text-muted-foreground p-4">Loading tickets...</p>
+                        ) : filteredTickets.length > 0 ? (
+                            filteredTickets.map((ticket) => (
+                                <div
+                                    key={ticket.id}
+                                    className={cn(
+                                        "flex items-center justify-between p-4 hover:bg-muted cursor-pointer",
+                                        selectedTickets.includes(ticket.id) && "bg-muted",
+                                        selectedTicketId === ticket.id && "bg-muted"
+                                    )}
+                                    onClick={() => {
+                                        setSelectedTicketId(ticket.id)
+                                    }}
+                                >
+                                    <div className="space-y-1 min-w-0 flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-medium truncate">{ticket.title}</p>
+                                            <Badge className={priorityColors[ticket.priority as keyof typeof priorityColors]}>
+                                                {ticket.priority}
+                                            </Badge>
+                                            <Badge className={statusColors[ticket.status as keyof typeof statusColors]}>
+                                                {ticket.status}
+                                            </Badge>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <span className="truncate">{ticket.creator?.email || 'Unknown'}</span>
+                                            <span>•</span>
+                                            <span>{ticket.assigned_to ? 'Updated' : 'Created'} {new Date(ticket.updated_at || ticket.created_at).toLocaleDateString()}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">Active tickets</TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                            ))
+                        ) : (
+                            <p className="text-sm text-muted-foreground p-4">No tickets found</p>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* Tickets Grid */}
-            <div className="grid gap-6 md:grid-cols-2">
-                {/* Unassigned Tickets */}
-                <Card className="md:col-span-2">
-                    <div className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold">Unassigned Tickets</h3>
-                            <Button variant="ghost" className="gap-2" asChild>
-                                <Link href="/reviewer/tickets">
-                                    View All <ArrowRight className="h-4 w-4" />
-                                </Link>
-                            </Button>
-                        </div>
-                        <div className="space-y-4">
-                            {loading ? (
-                                <p className="text-sm text-muted-foreground">Loading tickets...</p>
-                            ) : openTickets.length > 0 ? (
-                                openTickets.map((ticket) => (
-                                    <div key={ticket.id} className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                                        <div className="space-y-1">
-                                            <div className="flex items-center gap-2">
-                                                <p className="font-medium">{ticket.title}</p>
-                                                <Badge className={priorityColors[ticket.priority as keyof typeof priorityColors]}>
-                                                    {ticket.priority}
-                                                </Badge>
-                                                <Badge className={statusColors[ticket.status as keyof typeof statusColors]}>
-                                                    {ticket.status}
-                                                </Badge>
-                                            </div>
-                                            <p className="text-sm text-muted-foreground">
-                                                Created {new Date(ticket.created_at).toLocaleDateString()}
-                                            </p>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Button
-                                                size="sm"
-                                                onClick={() => handleAssign(ticket.id)}
-                                            >
-                                                Assign to Me
-                                            </Button>
-                                            <Button variant="outline" size="sm" asChild>
-                                                <Link href={`/reviewer/tickets/${ticket.id}`}>View</Link>
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <p className="text-sm text-muted-foreground">No unassigned tickets</p>
-                            )}
-                        </div>
-                    </div>
-                </Card>
+            {/* Main content area */}
+            <div className="flex-1 overflow-hidden flex flex-col">
+                {/* Status action buttons */}
+                <div className="flex items-center justify-end gap-2 p-4 border-b">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={selectedTickets.length === 0}
+                        className="h-8 w-8"
+                        title="Mark as resolved"
+                    >
+                        <CheckCircle className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={selectedTickets.length === 0}
+                        className="h-8 w-8"
+                        title="Mark as in progress"
+                    >
+                        <Clock3 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={selectedTickets.length === 0}
+                        className="h-8 w-8"
+                        title="Mark as urgent"
+                    >
+                        <AlertTriangle className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={selectedTickets.length === 0}
+                        className="h-8 w-8"
+                        title="Close ticket"
+                    >
+                        <XCircle className="h-4 w-4" />
+                    </Button>
+                </div>
 
-                {/* My Assigned Tickets */}
-                <Card className="md:col-span-2">
-                    <div className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold">My Assigned Tickets</h3>
-                            <Button variant="ghost" className="gap-2" asChild>
-                                <Link href="/reviewer/tickets/assigned">
-                                    View All <ArrowRight className="h-4 w-4" />
-                                </Link>
-                            </Button>
+                {/* Ticket detail or placeholder */}
+                <div className="flex-1 overflow-auto">
+                    {selectedTicketWithDetails ? (
+                        <ReviewerTicketView
+                            ticket={selectedTicketWithDetails}
+                            messages={messages || []}
+                            sendMessage={sendMessage}
+                            onAssign={selectedTicket && !selectedTicket.assigned_to ? () => handleAssign(selectedTicket.id) : undefined}
+                        />
+                    ) : (
+                        <div className="h-full flex items-center justify-center text-muted-foreground">
+                            Select a ticket to view details
                         </div>
-                        <div className="space-y-4">
-                            {loading ? (
-                                <p className="text-sm text-muted-foreground">Loading tickets...</p>
-                            ) : inProgressTickets.length > 0 ? (
-                                inProgressTickets.map((ticket) => (
-                                    <div key={ticket.id} className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                                        <div className="space-y-1">
-                                            <div className="flex items-center gap-2">
-                                                <p className="font-medium">{ticket.title}</p>
-                                                <Badge className={priorityColors[ticket.priority as keyof typeof priorityColors]}>
-                                                    {ticket.priority}
-                                                </Badge>
-                                            </div>
-                                            <p className="text-sm text-muted-foreground">
-                                                Updated {new Date(ticket.updated_at).toLocaleDateString()}
-                                            </p>
-                                        </div>
-                                        <Button variant="outline" size="sm" asChild>
-                                            <Link href={`/reviewer/tickets/${ticket.id}`}>Continue</Link>
-                                        </Button>
-                                    </div>
-                                ))
-                            ) : (
-                                <p className="text-sm text-muted-foreground">No assigned tickets</p>
-                            )}
-                        </div>
-                    </div>
-                </Card>
+                    )}
+                </div>
             </div>
-        </main>
+        </>
     )
 } 

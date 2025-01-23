@@ -22,7 +22,7 @@ export function useTickets() {
                 .select(`
                     *,
                     customer:customers(name),
-                    assigned:profiles(full_name)
+                    assigned:profiles!tickets_assigned_to_fkey(full_name)
                 `)
                 .eq('created_by', session.user.id)
                 .order('created_at', { ascending: false })

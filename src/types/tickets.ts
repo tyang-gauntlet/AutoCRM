@@ -20,10 +20,13 @@ export interface TicketWithDetails {
     created_at: string
     updated_at: string
     customer?: {
-        name: string
+        name?: string
         email?: string
     }
     assigned?: {
         full_name: string
+    }
+    creator?: {
+        email: string
     }
 } 
