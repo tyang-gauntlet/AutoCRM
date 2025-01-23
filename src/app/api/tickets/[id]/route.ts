@@ -18,7 +18,14 @@ export async function GET(
 
         const { data: ticket, error } = await supabase
             .from('tickets')
-            .select('*')
+            .select(`
+                *,
+                assigned:assigned_to (
+                    id,
+                    email,
+                    full_name
+                )
+            `)
             .eq('id', params.id)
             .single()
 

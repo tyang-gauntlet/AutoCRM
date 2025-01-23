@@ -46,7 +46,14 @@ export async function GET(request: Request) {
 
         let query = supabase
             .from('tickets')
-            .select('*')
+            .select(`
+                *,
+                assigned:assigned_to (
+                    id,
+                    email,
+                    full_name
+                )
+            `)
 
         if (priorities.length > 0) {
             query = query.in('priority', priorities)

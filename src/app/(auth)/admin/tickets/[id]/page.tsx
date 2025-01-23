@@ -34,6 +34,7 @@ interface Ticket {
     description: string
     customer_id?: string
     created_by?: string
+    assigned?: { email: string }
 }
 
 const TICKET_STATUSES = [
@@ -237,7 +238,7 @@ export default function TicketDetails() {
                             {ticket.assigned_to && (
                                 <div className="flex items-center gap-2 text-sm">
                                     <UserCog className="h-4 w-4 text-muted-foreground" />
-                                    <span>Assigned to {ticket.assigned_to}</span>
+                                    <span>Assigned to {ticket.assigned?.email || ticket.assigned_to}</span>
                                 </div>
                             )}
                         </div>

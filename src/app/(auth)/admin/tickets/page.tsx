@@ -23,6 +23,7 @@ interface Ticket {
     created_at: string
     assigned_to?: string
     description: string
+    assigned?: { email: string }
 }
 
 export default function AdminTickets() {
@@ -116,7 +117,7 @@ export default function AdminTickets() {
                                     {ticket.assigned_to && (
                                         <div className="flex items-center gap-1">
                                             <UserCog className="h-4 w-4" />
-                                            <span>Assigned to {ticket.assigned_to}</span>
+                                            <span>Assigned to {ticket.assigned?.email || ticket.assigned_to}</span>
                                         </div>
                                     )}
                                 </div>
