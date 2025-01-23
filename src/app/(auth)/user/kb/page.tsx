@@ -15,6 +15,12 @@ import {
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useDebounce } from '@/hooks/use-debounce'
+import { unified } from 'unified'
+import remarkParse from 'remark-parse'
+import remarkGfm from 'remark-gfm'
+import remarkRehype from 'remark-rehype'
+import rehypeStringify from 'rehype-stringify'
+import { cn } from '@/lib/utils'
 
 interface Category {
     id: string
@@ -39,6 +45,7 @@ interface Article {
     created_by: string | null
     updated_by: string | null
     search_rank?: number
+    preview_html?: string
 }
 
 export default function KnowledgeBasePage() {
@@ -69,6 +76,8 @@ export default function KnowledgeBasePage() {
         const searchArticles = async () => {
             setSearching(true)
             try {
+                let articlesData: Partial<Article>[] = []
+
                 if (!debouncedQuery.trim()) {
                     // If no search query, show featured articles
                     const { data } = await supabase
@@ -77,7 +86,7 @@ export default function KnowledgeBasePage() {
                         .eq('status', 'published')
                         .order('created_at', { ascending: false })
                         .limit(4)
-                    setArticles((data || []) as Article[])
+                    articlesData = data || []
                 } else {
                     // If there's a search query, use the search function
                     const { data, error } = await supabase
@@ -88,8 +97,29 @@ export default function KnowledgeBasePage() {
                         })
 
                     if (error) throw error
-                    setArticles((data || []) as Article[])
+                    articlesData = data || []
                 }
+
+                // Process markdown previews
+                const processedArticles = await Promise.all(articlesData.map(async (article) => {
+                    const contentWithoutTitle = article.content?.replace(/^#\s+.*\n/, '') || ''
+                    const previewContent = contentWithoutTitle.split('\n').slice(0, 3).join('\n') // Take first 3 lines
+                    const processedContent = await unified()
+                        .use(remarkParse)
+                        .use(remarkGfm)
+                        .use(remarkRehype)
+                        .use(rehypeStringify)
+                        .process(previewContent)
+
+                    return {
+                        ...article,
+                        preview_html: processedContent.toString(),
+                        created_by: article.created_by || null,
+                        updated_by: article.updated_by || null
+                    } as Article
+                }))
+
+                setArticles(processedArticles)
             } catch (error) {
                 console.error('Error searching articles:', error)
                 setArticles([])
@@ -185,9 +215,29 @@ export default function KnowledgeBasePage() {
                                         <BookOpen className="inline-block h-5 w-5 mr-2" />
                                         {getHighlightedText(article.title, searchQuery)}
                                     </h3>
-                                    <p className="text-muted-foreground">
-                                        {getHighlightedText(getExcerpt(article.content, searchQuery), searchQuery)}
-                                    </p>
+                                    <div
+                                        className={cn(
+                                            "text-sm text-muted-foreground",
+                                            "prose dark:prose-invert max-w-none",
+                                            "[&>*:first-child]:mt-0",
+                                            "[&>*:last-child]:mb-0",
+                                            // Headings
+                                            "[&_h1]:text-xl [&_h1]:font-bold [&_h1]:mt-4 [&_h1]:mb-2",
+                                            "[&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2",
+                                            "[&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1",
+                                            // Paragraphs and spacing
+                                            "[&_p]:my-2 [&_p]:leading-6",
+                                            // Lists
+                                            "[&_ul]:!list-disc [&_ul]:!pl-6 [&_ul]:my-2",
+                                            "[&_ol]:!list-decimal [&_ol]:!pl-6 [&_ol]:my-2",
+                                            "[&_li]:my-0.5",
+                                            // Links
+                                            "[&_a]:text-primary [&_a]:underline [&_a]:font-medium",
+                                            // Strong and emphasis
+                                            "[&_strong]:font-bold [&_em]:italic"
+                                        )}
+                                        dangerouslySetInnerHTML={{ __html: article.preview_html || '' }}
+                                    />
                                 </Link>
                             </Card>
                         ))
@@ -243,9 +293,29 @@ export default function KnowledgeBasePage() {
                                             <BookOpen className="h-5 w-5" />
                                             {article.title}
                                         </h3>
-                                        <p className="text-sm text-muted-foreground">
-                                            {article.content.slice(0, 150)}...
-                                        </p>
+                                        <div
+                                            className={cn(
+                                                "text-sm text-muted-foreground",
+                                                "prose dark:prose-invert max-w-none",
+                                                "[&>*:first-child]:mt-0",
+                                                "[&>*:last-child]:mb-0",
+                                                // Headings
+                                                "[&_h1]:text-xl [&_h1]:font-bold [&_h1]:mt-4 [&_h1]:mb-2",
+                                                "[&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2",
+                                                "[&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1",
+                                                // Paragraphs and spacing
+                                                "[&_p]:my-2 [&_p]:leading-6",
+                                                // Lists
+                                                "[&_ul]:!list-disc [&_ul]:!pl-6 [&_ul]:my-2",
+                                                "[&_ol]:!list-decimal [&_ol]:!pl-6 [&_ol]:my-2",
+                                                "[&_li]:my-0.5",
+                                                // Links
+                                                "[&_a]:text-primary [&_a]:underline [&_a]:font-medium",
+                                                // Strong and emphasis
+                                                "[&_strong]:font-bold [&_em]:italic"
+                                            )}
+                                            dangerouslySetInnerHTML={{ __html: article.preview_html || '' }}
+                                        />
                                     </Link>
                                 </Card>
                             ))}
