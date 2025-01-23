@@ -20,10 +20,11 @@ interface Article {
     id: string
     title: string
     content: string
-    content_format?: 'markdown' | 'plain'
+    slug: string
     category_id: string | null
     status: string | null
     metadata: any
+    search_vector: unknown | null
     created_at: string
     updated_at: string
     created_by: string | null
