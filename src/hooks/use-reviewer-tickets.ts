@@ -23,7 +23,7 @@ export function useReviewerTickets() {
                 customer:customers(name),
                 assigned:profiles(full_name)
             `)
-            .eq('assigned_to', session.user.id)
+            .or(`assigned_to.eq.${session.user.id},and(assigned_to.is.null,status.eq.open)`)
             .order('created_at', { ascending: false })
 
         if (!error && data) {
@@ -44,7 +44,6 @@ export function useReviewerTickets() {
                     event: '*',
                     schema: 'public',
                     table: 'tickets',
-                    filter: `assigned_to=eq.${supabase.auth.getUser()}`
                 },
                 () => fetchTickets()
             )
