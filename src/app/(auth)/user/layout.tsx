@@ -2,6 +2,8 @@
 
 import { useAuth } from '@/hooks/useAuth'
 
+export const dynamic = 'force-dynamic'
+
 export default function UserLayout({
     children,
 }: {

@@ -22,6 +22,8 @@ import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
 import { cn } from '@/lib/utils'
 
+export const dynamic = 'force-dynamic'
+
 interface Category {
     id: string
     name: string

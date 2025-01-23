@@ -28,6 +28,8 @@ import {
 } from 'lucide-react'
 import { useUsers } from '@/hooks/useUsers'
 
+export const dynamic = 'force-dynamic'
+
 type UserRole = 'admin' | 'user' | 'reviewer'
 
 export default function UsersManagement() {

@@ -5,6 +5,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { useEffect } from 'react'
 import { Header } from '@/components/layout/header'
 
+export const dynamic = 'force-dynamic'
+
 export default function AuthLayout({
     children,
 }: {
