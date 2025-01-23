@@ -64,7 +64,17 @@ export default function LoginPage() {
                 router.refresh()
 
                 // Redirect based on role using window.location for a hard redirect
-                const redirectPath = role === 'admin' ? '/admin/dashboard' : '/user/dashboard'
+                let redirectPath: string
+                switch (role) {
+                    case 'admin':
+                        redirectPath = '/admin/dashboard'
+                        break
+                    case 'reviewer':
+                        redirectPath = '/reviewer/dashboard'
+                        break
+                    default:
+                        redirectPath = '/user/dashboard'
+                }
                 console.log('[Login] Redirecting to:', redirectPath)
                 window.location.href = redirectPath
             } else {

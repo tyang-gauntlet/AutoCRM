@@ -14,11 +14,18 @@ export function useAuth() {
         if (event === 'SIGNED_OUT') {
             setUser(null)
             setLoading(false)
+            // Clear all local storage and cookies
+            localStorage.clear()
+            document.cookie.split(";").forEach((c) => {
+                document.cookie = c
+                    .replace(/^ +/, "")
+                    .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/")
+            })
             // Don't redirect if already on login page
             if (window.location.pathname !== '/login') {
                 window.location.replace('/login')
             }
-        } else {
+        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             setUser(session?.user ?? null)
             setLoading(false)
         }
@@ -29,6 +36,13 @@ export function useAuth() {
         const checkSession = async () => {
             try {
                 const { data: { session }, error } = await supabase.auth.getSession()
+
+                if (error) {
+                    console.error('[useAuth] Error getting session:', error)
+                    setUser(null)
+                    setLoading(false)
+                    return
+                }
 
                 setUser(session?.user ?? null)
                 setLoading(false)
@@ -41,6 +55,7 @@ export function useAuth() {
                 }
             } catch (error) {
                 console.error('[useAuth] Error checking session:', error)
+                setUser(null)
                 setLoading(false)
             }
         }
@@ -55,17 +70,24 @@ export function useAuth() {
 
     const signOut = useCallback(async () => {
         try {
-            await supabase.auth.signOut()
+            const { error } = await supabase.auth.signOut()
+            if (error) {
+                console.error('[useAuth] Error signing out:', error)
+            }
+
+            // Clear all local storage and cookies regardless of signOut success
             localStorage.clear()
             document.cookie.split(";").forEach((c) => {
                 document.cookie = c
                     .replace(/^ +/, "")
                     .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/")
             })
+
             setUser(null)
             window.location.replace('/login')
         } catch (error) {
             console.error('[useAuth] Error signing out:', error)
+            // Still redirect to login on error
             window.location.replace('/login')
         }
     }, [supabase.auth])
