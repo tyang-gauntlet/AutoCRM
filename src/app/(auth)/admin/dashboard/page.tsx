@@ -61,10 +61,18 @@ export default function AdminDashboard() {
                         Monitor and manage customer support operations
                     </p>
                 </div>
-                <Button variant="destructive" className="gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    High Priority Queue ({ticketLoading ? '...' : ticketStats.highPriorityCount})
-                </Button>
+                {!ticketLoading && ticketStats.highPriorityCount > 0 && (
+                    <Link href="/admin/tickets?priority=high,urgent">
+                        <Button
+                            variant="destructive"
+                            className="gap-2 animate-pulse shadow-lg"
+                        >
+                            <AlertCircle className="h-4 w-4" />
+                            Urgent Queue ({ticketStats.highPriorityCount})
+                            <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full" />
+                        </Button>
+                    </Link>
+                )}
             </div>
 
             {/* Stats Grid */}

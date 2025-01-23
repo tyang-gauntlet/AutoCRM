@@ -40,29 +40,26 @@ export async function GET(request: Request) {
     try {
         const supabase = createRouteHandlerClient({ cookies })
         const { searchParams } = new URL(request.url)
+        const priorities = searchParams.get('priority')?.split(',') || []
 
-        const status = searchParams.get('status')
-        const priority = searchParams.get('priority')
-        const assigned_to = searchParams.get('assigned_to')
+        let query = supabase
+            .from('tickets')
+            .select('*')
 
-        let query = supabase.from('tickets').select(`
-      *,
-      customer:customers(id, name, email),
-      assigned:profiles(id, full_name),
-      creator:profiles(id, full_name)
-    `)
+        if (priorities.length > 0) {
+            query = query.in('priority', priorities)
+        }
 
-        if (status) query = query.eq('status', status)
-        if (priority) query = query.eq('priority', priority)
-        if (assigned_to) query = query.eq('assigned_to', assigned_to)
-
-        const { data, error } = await query.order('created_at', { ascending: false })
+        const { data: tickets, error } = await query.order('created_at', { ascending: false })
 
         if (error) throw error
 
-        return NextResponse.json(data)
+        return NextResponse.json({ tickets })
     } catch (error) {
-        console.error('Error fetching tickets:', error)
-        return NextResponse.json({ error: 'Error fetching tickets' }, { status: 500 })
+        console.error('Error:', error)
+        return NextResponse.json(
+            { error: 'Internal Server Error' },
+            { status: 500 }
+        )
     }
 } 

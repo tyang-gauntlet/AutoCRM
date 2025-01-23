@@ -55,8 +55,8 @@ export function useTicketStats() {
             const { count: highPriorityCount } = await supabase
                 .from('tickets')
                 .select('*', { count: 'exact', head: true })
-                .eq('priority', 'high')
-                .eq('status', 'open')
+                .in('priority', ['high', 'urgent'])
+                .in('status', ['open', 'in_progress'])
 
             // Calculate queue wait time
             const { data: oldestTicket } = await supabase
