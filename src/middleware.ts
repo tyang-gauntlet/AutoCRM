@@ -30,6 +30,15 @@ export async function middleware(request: NextRequest) {
         // Refresh the session if possible
         const { data: { session }, error } = await supabase.auth.getSession()
 
+        if (error) {
+            console.error('[Middleware] Auth error:', {
+                error: error.message,
+                name: error.name,
+                stack: error.stack,
+                status: error.status
+            })
+        }
+
         const { pathname } = request.nextUrl
 
         // Check if the current route is public
@@ -44,7 +53,6 @@ export async function middleware(request: NextRequest) {
 
         // If there's an auth error on a protected route, redirect to login
         if (error && !isPublicRoute) {
-            console.error('[Middleware] Auth error:', error)
             return NextResponse.redirect(new URL('/login', request.url))
         }
 

@@ -8,6 +8,7 @@ import Link from 'next/link'
 import type { TicketWithDetails } from '@/types/tickets'
 import { priorityColors, statusColors } from '@/constants/ticket'
 import { TicketListItem } from './ticket-list-item'
+import { AssignedIndicator } from './assigned-indicator'
 
 interface TicketListProps {
     tickets: TicketWithDetails[]

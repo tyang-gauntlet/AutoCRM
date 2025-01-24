@@ -2,6 +2,7 @@ import React from 'react'
 import { Card } from '@/components/ui/card'
 import { TicketBadge } from './ticket-badge'
 import type { TicketWithDetails } from '@/types/tickets'
+import { AssignedIndicator } from './assigned-indicator'
 
 interface TicketHeaderProps {
     ticket: TicketWithDetails
@@ -14,7 +15,12 @@ export function TicketHeader({ ticket }: TicketHeaderProps) {
                 <div className="flex-1">
                     <div className="mb-2">
                         <div className="flex items-center gap-4">
-                            <h1 className="text-2xl font-bold">{ticket.title}</h1>
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-2xl font-bold">{ticket.title}</h1>
+                                {ticket.assigned && (
+                                    <AssignedIndicator name={ticket.assigned.full_name} />
+                                )}
+                            </div>
                             <div className="flex gap-2">
                                 <TicketBadge type="priority" value={ticket.priority} />
                                 <TicketBadge type="status" value={ticket.status} />

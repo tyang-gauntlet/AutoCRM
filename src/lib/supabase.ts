@@ -17,7 +17,33 @@ export const supabase = (() => {
             auth: {
                 persistSession: true,
                 detectSessionInUrl: true,
-                storageKey: 'autocrm-auth-token', // Add a unique storage key
+                storageKey: 'autocrm-auth-token',
+                flowType: 'pkce', // Add PKCE flow for better security
+                autoRefreshToken: true,
+                storage: {
+                    // Use local storage as fallback if cookies fail
+                    getItem: (key) => {
+                        try {
+                            return localStorage.getItem(key)
+                        } catch {
+                            return null
+                        }
+                    },
+                    setItem: (key, value) => {
+                        try {
+                            localStorage.setItem(key, value)
+                        } catch {
+                            // Ignore storage errors
+                        }
+                    },
+                    removeItem: (key) => {
+                        try {
+                            localStorage.removeItem(key)
+                        } catch {
+                            // Ignore storage errors
+                        }
+                    },
+                },
             },
         }
     )

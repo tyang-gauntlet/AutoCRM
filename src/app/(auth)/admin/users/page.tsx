@@ -24,7 +24,8 @@ import {
     Loader2,
     Shield,
     Users,
-    UserCheck
+    UserCheck,
+    RefreshCw
 } from 'lucide-react'
 import { useUsers } from '@/hooks/useUsers'
 
@@ -33,7 +34,7 @@ export const dynamic = 'force-dynamic'
 type UserRole = 'admin' | 'user' | 'reviewer'
 
 export default function UsersManagement() {
-    const { users, loading, updateUserRole } = useUsers()
+    const { users, loading, updateUserRole, refreshUsers } = useUsers()
     const [searchQuery, setSearchQuery] = useState('')
 
     // Filter users based on search query
@@ -61,6 +62,10 @@ export default function UsersManagement() {
             default:
                 return null
         }
+    }
+
+    const handleRefresh = async () => {
+        await refreshUsers()
     }
 
     if (loading) {
@@ -97,6 +102,14 @@ export default function UsersManagement() {
                             className="pl-10"
                         />
                     </div>
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleRefresh}
+                        disabled={loading}
+                    >
+                        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                    </Button>
                 </div>
 
                 <div className="rounded-md border">

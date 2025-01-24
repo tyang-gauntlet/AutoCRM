@@ -15,6 +15,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { AssignedIndicator } from './assigned-indicator'
 
 interface ReviewerTicketViewProps {
     ticket: TicketWithDetails
@@ -70,7 +71,10 @@ export function ReviewerTicketView({
                         </Avatar>
                         <div className="flex-1 w-full">
                             <div className="w-full flex items-center justify-between">
-                                <h2 className="text-lg font-semibold">{ticket.title}</h2>
+                                <div className="flex items-center gap-2">
+                                    <h2 className="text-lg font-semibold">{ticket.title}</h2>
+                                    {ticket.assigned && <AssignedIndicator />}
+                                </div>
                                 <div className="flex items-center space-x-2">
                                     <TooltipProvider delayDuration={100}>
                                         {onAssign && !ticket.assigned && (

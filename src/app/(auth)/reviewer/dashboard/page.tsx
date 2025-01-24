@@ -31,10 +31,13 @@ import { TicketDetail } from '@/components/tickets/ticket-detail'
 import { useTicketDetails } from '@/hooks/use-ticket-details'
 import type { TicketWithDetails } from '@/types/tickets'
 import { ReviewerTicketView } from '@/components/tickets/reviewer-ticket-view'
+import { AssignedIndicator } from '@/components/tickets/assigned-indicator'
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function ReviewerDashboard() {
     const { tickets, loading, assignTicket } = useReviewerTickets()
     const [searchQuery, setSearchQuery] = React.useState("")
+    const [activeTab, setActiveTab] = React.useState<"all" | "assigned">("all")
     const [selectedTickets, setSelectedTickets] = React.useState<string[]>([])
     const [selectedTicketId, setSelectedTicketId] = React.useState<string | null>(null)
 
@@ -73,11 +76,16 @@ export default function ReviewerDashboard() {
         }
     }
 
-    const filteredTickets = tickets.filter(ticket =>
-        ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ticket.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ticket.priority.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    const filteredTickets = tickets.filter(ticket => {
+        const matchesSearch = ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            ticket.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            ticket.priority.toLowerCase().includes(searchQuery.toLowerCase())
+
+        if (activeTab === "assigned") {
+            return matchesSearch && ticket.assigned_to
+        }
+        return matchesSearch
+    })
 
     // Transform ticket to match TicketWithDetails type
     const selectedTicketWithDetails: TicketWithDetails | null = selectedTicket ? {
@@ -144,6 +152,22 @@ export default function ReviewerDashboard() {
                     </div>
                 </div>
 
+                {/* Tabs */}
+                <div className="border-b px-4 py-2">
+                    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "all" | "assigned")} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="all" className="flex items-center gap-2">
+                                <MessageSquare className="h-4 w-4" />
+                                All Tickets
+                            </TabsTrigger>
+                            <TabsTrigger value="assigned" className="flex items-center gap-2">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Assigned
+                            </TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                </div>
+
                 {/* Search */}
                 <div className="p-4 border-b">
                     <div className="relative">
@@ -178,6 +202,9 @@ export default function ReviewerDashboard() {
                                     <div className="space-y-1 min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
                                             <p className="font-medium truncate">{ticket.title}</p>
+                                            {ticket.assigned_to && (
+                                                <AssignedIndicator name={ticket.assigned?.full_name || undefined} />
+                                            )}
                                             <Badge className={priorityColors[ticket.priority as keyof typeof priorityColors]}>
                                                 {ticket.priority}
                                             </Badge>
