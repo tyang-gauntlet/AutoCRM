@@ -194,28 +194,267 @@ END $$;
 -- Seed knowledge base categories
 INSERT INTO public.kb_categories (name, slug, description)
 VALUES
-  ('Getting Started', 'getting-started', 'Essential guides to help you get up and running'),
-  ('Account Management', 'account', 'Learn how to manage your account settings'),
-  ('Troubleshooting', 'troubleshooting', 'Common issues and their solutions'),
-  ('Best Practices', 'best-practices', 'Tips and recommendations for optimal usage'),
-  ('API Documentation', 'api', 'Technical documentation for API integration');
+  ('Getting Started', 'getting-started', 'Essential guides and tutorials to help you get up and running with AutoCRM. Perfect for new users.'),
+  ('Account Management', 'account', 'Learn how to manage your account settings, security, and user preferences effectively.'),
+  ('Troubleshooting', 'troubleshooting', 'Solutions to common issues, error messages, and technical problems you might encounter.'),
+  ('Best Practices', 'best-practices', 'Expert tips, recommendations, and industry standards for optimal usage of AutoCRM.'),
+  ('API Documentation', 'api', 'Comprehensive technical documentation for API integration, including examples and use cases.'),
+  ('Security & Privacy', 'security', 'Important information about security features, data protection, and privacy settings.'),
+  ('Integrations', 'integrations', 'Guides for connecting AutoCRM with other tools and services in your workflow.');
 
--- Seed knowledge base articles
-INSERT INTO public.kb_articles (title, slug, content, category_id, status)
+-- Seed knowledge base articles with comprehensive content
+INSERT INTO public.kb_articles (title, slug, content, category_id, status, metadata)
 VALUES
   (
-    'Welcome to AutoCRM',
-    'welcome-to-autocrm',
-    '# Welcome to AutoCRM\n\nWelcome to AutoCRM! This guide will help you get started with our platform.',
+    'Getting Started with AutoCRM',
+    'getting-started-guide',
+    '# Getting Started with AutoCRM
+
+Welcome to AutoCRM! This comprehensive guide will help you get started with our platform and make the most of its features.
+
+## Quick Setup Guide
+
+1. **Account Setup**
+   - Log in to your account
+   - Complete your profile information
+   - Set up your preferences
+
+2. **Key Features**
+   - Ticket Management
+   - Knowledge Base
+   - AI Assistant
+   - Analytics Dashboard
+
+3. **First Steps**
+   - Create your first ticket
+   - Browse the knowledge base
+   - Set up notifications
+
+## Best Practices
+
+- Keep your profile updated
+- Check notifications regularly
+- Use ticket categories effectively
+
+## Need Help?
+
+Contact our support team or use the AI assistant for immediate help.',
     (SELECT id FROM public.kb_categories WHERE slug = 'getting-started'),
-    'published'
+    'published',
+    '{"view_count": 150, "helpful_count": 45}'
   ),
   (
-    'How to Reset Your Password',
-    'how-to-reset-password',
-    '# How to Reset Your Password\n\nForgot your password? Follow these steps to reset it.',
+    'Security Best Practices',
+    'security-best-practices',
+    '# Security Best Practices
+
+Protect your account and data with these essential security practices.
+
+## Password Guidelines
+
+- Use strong, unique passwords
+- Enable two-factor authentication
+- Change passwords regularly
+
+## Access Management
+
+1. **User Roles**
+   - Admin
+   - Support Agent
+   - Regular User
+
+2. **Permissions**
+   - Understanding access levels
+   - Managing team permissions
+   - Audit logs
+
+## Data Protection
+
+- Regular backups
+- Encryption standards
+- Privacy compliance',
+    (SELECT id FROM public.kb_categories WHERE slug = 'security'),
+    'published',
+    '{"view_count": 120, "helpful_count": 38}'
+  ),
+  (
+    'Troubleshooting Common Issues',
+    'common-troubleshooting',
+    '# Troubleshooting Common Issues
+
+Solutions to frequently encountered problems and how to resolve them quickly.
+
+## Login Issues
+
+1. **Cannot Log In**
+   - Clear browser cache
+   - Reset password
+   - Check email verification
+
+2. **Account Locked**
+   - Multiple failed attempts
+   - Security triggers
+   - Resolution steps
+
+## Performance
+
+- Browser compatibility
+- Cache clearing
+- System requirements
+
+## Error Messages
+
+Common error codes and their solutions:
+- Error 404: Page not found
+- Error 403: Access denied
+- Error 500: Server error',
+    (SELECT id FROM public.kb_categories WHERE slug = 'troubleshooting'),
+    'published',
+    '{"view_count": 200, "helpful_count": 75}'
+  ),
+  (
+    'API Integration Guide',
+    'api-integration',
+    '# API Integration Guide
+
+Complete guide to integrating AutoCRM with your applications.
+
+## Authentication
+
+```javascript
+const api = new AutoCRM({
+  apiKey: "your-api-key",
+  environment: "production"
+});
+```
+
+## Common Endpoints
+
+1. **Tickets**
+   - GET /api/tickets
+   - POST /api/tickets
+   - PUT /api/tickets/{id}
+
+2. **Users**
+   - GET /api/users
+   - POST /api/users
+   - PUT /api/users/{id}
+
+## Rate Limits
+
+- 1000 requests per minute
+- Burst limit: 100 requests
+- Rate limit headers
+
+## Error Handling
+
+Best practices for handling API errors and responses.',
+    (SELECT id FROM public.kb_categories WHERE slug = 'api'),
+    'published',
+    '{"view_count": 180, "helpful_count": 60}'
+  ),
+  (
+    'Account Management Guide',
+    'account-management',
+    '# Account Management Guide
+
+Learn how to manage your AutoCRM account effectively.
+
+## Profile Settings
+
+1. **Personal Information**
+   - Update contact details
+   - Change profile picture
+   - Set time zone
+
+2. **Notification Preferences**
+   - Email notifications
+   - In-app alerts
+   - Mobile push notifications
+
+## Subscription Management
+
+- View current plan
+- Upgrade options
+- Billing history
+
+## Team Management
+
+- Invite team members
+- Assign roles
+- Manage permissions',
     (SELECT id FROM public.kb_categories WHERE slug = 'account'),
-    'published'
+    'published',
+    '{"view_count": 90, "helpful_count": 30}'
+  ),
+  (
+    'Integration with Popular Tools',
+    'popular-integrations',
+    '# Integration with Popular Tools
+
+Connect AutoCRM with your favorite tools and services.
+
+## Available Integrations
+
+1. **Communication**
+   - Slack
+   - Microsoft Teams
+   - Discord
+
+2. **Project Management**
+   - Jira
+   - Trello
+   - Asana
+
+3. **CRM Systems**
+   - Salesforce
+   - HubSpot
+   - Zoho
+
+## Setup Guides
+
+Step-by-step instructions for each integration.
+
+## Troubleshooting
+
+Common integration issues and solutions.',
+    (SELECT id FROM public.kb_categories WHERE slug = 'integrations'),
+    'published',
+    '{"view_count": 85, "helpful_count": 28}'
+  ),
+  (
+    'Best Practices for Support Teams',
+    'support-team-best-practices',
+    '# Best Practices for Support Teams
+
+Optimize your support operations with these proven practices.
+
+## Ticket Management
+
+1. **Prioritization**
+   - Understanding urgency
+   - Response time goals
+   - Escalation procedures
+
+2. **Communication**
+   - Professional tone
+   - Clear explanations
+   - Follow-up protocols
+
+## Quality Assurance
+
+- Regular reviews
+- Customer feedback
+- Team training
+
+## Metrics & KPIs
+
+- Response time
+- Resolution rate
+- Customer satisfaction',
+    (SELECT id FROM public.kb_categories WHERE slug = 'best-practices'),
+    'published',
+    '{"view_count": 110, "helpful_count": 42}'
   );
 
 -- Seed tickets for testing

@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
-import { LogOut, Settings, Loader2 } from 'lucide-react'
+import { LogOut, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
@@ -66,11 +66,6 @@ export function Header() {
                             {isAdmin ? 'Admin' : isReviewer ? 'Reviewer' : 'User'}
                         </span>
                     </div>
-                    <Button variant="ghost" size="icon" asChild>
-                        <Link href="/settings">
-                            <Settings className="h-4 w-4" />
-                        </Link>
-                    </Button>
                     <Button
                         variant="ghost"
                         size="icon"

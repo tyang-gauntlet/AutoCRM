@@ -7,6 +7,7 @@ type TicketStats = {
     queueWaitTime: string
     aiResolutionRate: number
     customerSatisfaction: number
+    feedbackCount: number
     highPriorityCount: number
     averageResponseTime: number
     autoResolvedToday: number
@@ -27,6 +28,7 @@ export function useTicketStats() {
         queueWaitTime: '0m',
         aiResolutionRate: 0,
         customerSatisfaction: 0,
+        feedbackCount: 0,
         highPriorityCount: 0,
         averageResponseTime: 0,
         autoResolvedToday: 0,
@@ -171,14 +173,26 @@ export function useTicketStats() {
                 }
             }) || []
 
-            // Calculate customer satisfaction (mock for now, implement actual logic based on your ratings table)
-            const customerSatisfaction = 4.8
+            // Calculate customer satisfaction from actual feedback
+            const { data: feedbackData } = await supabase
+                .from('ticket_feedback')
+                .select('rating')
+                .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()) // Last 30 days
+
+            let customerSatisfaction = 0
+            let feedbackCount = 0
+            if (feedbackData && feedbackData.length > 0) {
+                feedbackCount = feedbackData.length
+                const totalRating = feedbackData.reduce((sum, feedback) => sum + feedback.rating, 0)
+                customerSatisfaction = Number((totalRating / feedbackCount).toFixed(1))
+            }
 
             setStats({
                 activeTickets: activeTickets || 0,
                 queueWaitTime,
                 aiResolutionRate,
                 customerSatisfaction,
+                feedbackCount,
                 highPriorityCount: highPriorityCount || 0,
                 averageResponseTime,
                 autoResolvedToday: autoResolvedToday || 0,

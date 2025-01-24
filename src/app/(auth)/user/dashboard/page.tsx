@@ -6,21 +6,41 @@ import { Button } from '@/components/ui/button'
 import {
     MessageSquare,
     Search,
-    BookOpen,
-    Video,
-    Clock,
     Bot,
     ArrowRight,
-    HelpCircle
+    HelpCircle,
+    Clock,
+    FileText,
+    BookOpen
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTickets } from '@/hooks/use-tickets'
+import { useUserActivity } from '@/hooks/use-user-activity'
 import { Badge } from '@/components/ui/badge'
 import { priorityColors } from '@/constants/ticket'
+import { formatDistanceToNow } from 'date-fns'
+import { unified } from 'unified'
+import remarkParse from 'remark-parse'
+import remarkGfm from 'remark-gfm'
+import remarkRehype from 'remark-rehype'
+import rehypeStringify from 'rehype-stringify'
+import { cn } from '@/lib/utils'
 
 export default function UserDashboard() {
-    const { tickets, loading } = useTickets()
+    const { tickets, loading: ticketsLoading } = useTickets()
+    const { activities, faqs, loading: activityLoading } = useUserActivity()
     const recentTickets = tickets.slice(0, 3) // Show only 3 most recent tickets
+
+    const getActivityIcon = (type: string) => {
+        switch (type) {
+            case 'ticket':
+                return <MessageSquare className="h-5 w-5 text-blue-500" />
+            case 'kb':
+                return <BookOpen className="h-5 w-5 text-green-500" />
+            default:
+                return <Clock className="h-5 w-5 text-muted-foreground" />
+        }
+    }
 
     return (
         <main className="p-8">
@@ -79,7 +99,7 @@ export default function UserDashboard() {
                         </Button>
                     </div>
                     <div className="space-y-4">
-                        {loading ? (
+                        {ticketsLoading ? (
                             <p className="text-sm text-muted-foreground">Loading tickets...</p>
                         ) : recentTickets.length > 0 ? (
                             recentTickets.map((ticket) => (
@@ -106,61 +126,85 @@ export default function UserDashboard() {
                     </div>
                 </Card>
 
-                {/* Popular Resources */}
-                <Card className="p-6">
-                    <h3 className="text-lg font-semibold mb-4">Popular Resources</h3>
-                    <div className="space-y-4">
-                        <Link href="/kb/getting-started" className="block">
-                            <div className="flex items-center gap-3 p-3 hover:bg-muted rounded-lg transition-colors">
-                                <BookOpen className="h-5 w-5 text-muted-foreground" />
-                                <div>
-                                    <p className="font-medium">Getting Started Guide</p>
-                                    <p className="text-sm text-muted-foreground">Basic setup and configuration</p>
-                                </div>
-                            </div>
-                        </Link>
-                        <Link href="/kb/tutorials" className="block">
-                            <div className="flex items-center gap-3 p-3 hover:bg-muted rounded-lg transition-colors">
-                                <Video className="h-5 w-5 text-muted-foreground" />
-                                <div>
-                                    <p className="font-medium">Video Tutorials</p>
-                                    <p className="text-sm text-muted-foreground">Step-by-step visual guides</p>
-                                </div>
-                            </div>
-                        </Link>
-                        {/* Add more resources */}
-                    </div>
-                </Card>
-
                 {/* Recent Activity */}
                 <Card className="p-6">
-                    <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold">Recent Activity</h3>
+                    </div>
                     <div className="space-y-4">
-                        <div className="flex items-center gap-3">
-                            <Clock className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                                <p className="font-medium">Viewed Getting Started Guide</p>
-                                <p className="text-sm text-muted-foreground">2 hours ago</p>
-                            </div>
-                        </div>
-                        {/* Add more activity items */}
+                        {activityLoading ? (
+                            <p className="text-sm text-muted-foreground">Loading activity...</p>
+                        ) : activities.length > 0 ? (
+                            activities.map((activity) => (
+                                <div key={activity.id} className="flex items-start gap-3">
+                                    {getActivityIcon(activity.type)}
+                                    <div>
+                                        <p className="font-medium">{activity.title}</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-sm text-muted-foreground">No recent activity</p>
+                        )}
                     </div>
                 </Card>
 
                 {/* FAQ Section */}
-                <Card className="p-6">
-                    <h3 className="text-lg font-semibold mb-4">Frequently Asked Questions</h3>
-                    <div className="space-y-4">
-                        <Link href="/faq/account" className="block">
-                            <div className="flex items-center gap-3 p-3 hover:bg-muted rounded-lg transition-colors">
-                                <HelpCircle className="h-5 w-5 text-muted-foreground" />
-                                <div>
-                                    <p className="font-medium">How do I reset my password?</p>
-                                    <p className="text-sm text-muted-foreground">Account management guide</p>
-                                </div>
-                            </div>
-                        </Link>
-                        {/* Add more FAQs */}
+                <Card className="p-6 md:col-span-2">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold">Frequently Asked Questions</h3>
+                        <Button variant="ghost" className="gap-2" asChild>
+                            <Link href="/user/kb">
+                                Browse All <ArrowRight className="h-4 w-4" />
+                            </Link>
+                        </Button>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {activityLoading ? (
+                            <p className="text-sm text-muted-foreground">Loading FAQs...</p>
+                        ) : faqs.length > 0 ? (
+                            faqs.map((faq) => (
+                                <Card key={faq.id} className="p-6">
+                                    <Link
+                                        href={`/user/kb/articles/${faq.slug}`}
+                                        className="block hover:no-underline"
+                                    >
+                                        <h3 className="text-xl font-semibold mb-2 text-primary hover:text-primary/80">
+                                            <BookOpen className="inline-block h-5 w-5 mr-2" />
+                                            {faq.title}
+                                        </h3>
+                                        <div
+                                            className={cn(
+                                                "text-sm text-muted-foreground",
+                                                "prose dark:prose-invert max-w-none",
+                                                "[&>*:first-child]:mt-0",
+                                                "[&>*:last-child]:mb-0",
+                                                // Headings
+                                                "[&_h1]:text-xl [&_h1]:font-bold [&_h1]:mt-4 [&_h1]:mb-2",
+                                                "[&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2",
+                                                "[&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1",
+                                                // Paragraphs and spacing
+                                                "[&_p]:my-2 [&_p]:leading-6",
+                                                // Lists
+                                                "[&_ul]:!list-disc [&_ul]:!pl-6 [&_ul]:my-2",
+                                                "[&_ol]:!list-decimal [&_ol]:!pl-6 [&_ol]:my-2",
+                                                "[&_li]:my-0.5",
+                                                // Links
+                                                "[&_a]:text-primary [&_a]:underline [&_a]:font-medium",
+                                                // Strong and emphasis
+                                                "[&_strong]:font-bold [&_em]:italic"
+                                            )}
+                                            dangerouslySetInnerHTML={{ __html: faq.preview_html || '' }}
+                                        />
+                                    </Link>
+                                </Card>
+                            ))
+                        ) : (
+                            <p className="text-sm text-muted-foreground">No FAQs found</p>
+                        )}
                     </div>
                 </Card>
             </div>

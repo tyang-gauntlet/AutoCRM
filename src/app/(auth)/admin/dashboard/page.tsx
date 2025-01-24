@@ -12,7 +12,8 @@ import {
     Bot,
     AlertCircle,
     Shield,
-    UserCog
+    UserCog,
+    Star,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useUserStats } from '@/hooks/useUserStats'
@@ -28,26 +29,23 @@ export default function AdminDashboard() {
         {
             title: 'Active Tickets',
             value: ticketLoading ? '...' : ticketStats.activeTickets.toString(),
-            change: '+5%',
-            icon: <ListTodo className="h-4 w-4" />
+            icon: <ListTodo className="h-5 w-5 text-muted-foreground" />
         },
         {
             title: 'Queue Wait Time',
             value: ticketLoading ? '...' : ticketStats.queueWaitTime,
-            change: '-12%',
-            icon: <Clock className="h-4 w-4" />
+            icon: <Clock className="h-5 w-5 text-muted-foreground" />
         },
         {
             title: 'AI Resolution Rate',
             value: ticketLoading ? '...' : `${ticketStats.aiResolutionRate}%`,
-            change: '+8%',
-            icon: <Bot className="h-4 w-4" />
+            icon: <Bot className="h-5 w-5 text-muted-foreground" />
         },
         {
             title: 'Customer Satisfaction',
             value: ticketLoading ? '...' : `${ticketStats.customerSatisfaction}/5`,
-            change: '+2%',
-            icon: <Users className="h-4 w-4" />
+            icon: <Star className="h-5 w-5 text-yellow-400" />,
+            description: ticketLoading ? '...' : `${ticketStats.feedbackCount || 0} reviews in 30 days`
         }
     ]
 
@@ -80,16 +78,16 @@ export default function AdminDashboard() {
             {/* Stats Grid */}
             <div className="grid gap-4 md:grid-cols-4 mb-8">
                 {ticketStatsCards.map((stat) => (
-                    <Card key={stat.title} className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <span className="text-muted-foreground">{stat.icon}</span>
-                            <span className={`text-sm ${stat.change.startsWith('+') ? 'text-green-500' : 'text-red-500'}`}>
-                                {stat.change}
-                            </span>
-                        </div>
-                        <div className="space-y-1">
-                            <h3 className="text-2xl font-bold">{stat.value}</h3>
-                            <p className="text-sm text-muted-foreground">{stat.title}</p>
+                    <Card key={stat.title} className="p-4">
+                        <div className="flex items-center gap-3">
+                            {stat.icon}
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
+                                <p className="text-2xl font-bold">{stat.value}</p>
+                                {stat.description && (
+                                    <p className="text-xs text-muted-foreground mt-1">{stat.description}</p>
+                                )}
+                            </div>
                         </div>
                     </Card>
                 ))}
@@ -141,17 +139,64 @@ export default function AdminDashboard() {
                     </div>
                 </Card>
 
-                {/* Queue Management */}
+                {/* Recent Activity */}
                 <Card className="p-6">
-                    <h3 className="text-lg font-semibold mb-4">Active Queue</h3>
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                            <div>
-                                <p className="font-medium">Average Wait Time</p>
-                                <p className="text-sm text-muted-foreground">{ticketLoading ? '...' : ticketStats.queueWaitTime}</p>
-                            </div>
-                            <Button size="sm">View All</Button>
-                        </div>
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold">Recent Activity</h3>
+                        <Link href="/admin/tickets">
+                            <Button variant="outline" size="sm">View All</Button>
+                        </Link>
+                    </div>
+                    <div className="space-y-3">
+                        {ticketLoading ? (
+                            <p className="text-muted-foreground">Loading...</p>
+                        ) : (
+                            ticketStats.recentActivity.map((activity) => (
+                                <div key={activity.ticketId} className="flex items-start gap-3 p-2.5 bg-muted/50 rounded-lg">
+                                    <MessageSquare className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-1" />
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <p className="font-medium truncate">
+                                                {activity.title}
+                                            </p>
+                                            <div className="flex gap-2 flex-shrink-0">
+                                                <Badge
+                                                    variant={
+                                                        activity.priority === 'high' ? 'destructive' :
+                                                            activity.priority === 'medium' ? 'default' :
+                                                                'secondary'
+                                                    }
+                                                    className="text-xs"
+                                                >
+                                                    {activity.priority}
+                                                </Badge>
+                                                <Badge
+                                                    variant={
+                                                        activity.status === 'resolved' ? 'default' :
+                                                            activity.status === 'in_progress' ? 'secondary' :
+                                                                'outline'
+                                                    }
+                                                    className="text-xs whitespace-nowrap"
+                                                >
+                                                    {activity.status.replace('_', ' ')}
+                                                </Badge>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap items-center text-sm text-muted-foreground gap-x-2 gap-y-1 mt-1">
+                                            <span className="truncate">{activity.action}</span>
+                                            {activity.assignedTo && (
+                                                <>
+                                                    <span>•</span>
+                                                    <span className="truncate">assigned to {activity.assignedTo}</span>
+                                                </>
+                                            )}
+                                            <span>•</span>
+                                            <span className="truncate">{formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </Card>
 
@@ -180,62 +225,6 @@ export default function AdminDashboard() {
                             </div>
                             <Bot className="h-8 w-8 text-muted-foreground" />
                         </div>
-                    </div>
-                </Card>
-
-                {/* Recent Activity */}
-                <Card className="p-6">
-                    <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
-                    <div className="space-y-4">
-                        {ticketLoading ? (
-                            <p className="text-muted-foreground">Loading...</p>
-                        ) : (
-                            ticketStats.recentActivity.map((activity) => (
-                                <div key={activity.ticketId} className="flex items-start gap-4 p-3 bg-muted/50 rounded-lg">
-                                    <MessageSquare className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-1" />
-                                    <div className="min-w-0 flex-1 space-y-1">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <p className="font-medium truncate">
-                                                {activity.title}
-                                            </p>
-                                            <div className="flex gap-2 flex-shrink-0">
-                                                <Badge
-                                                    variant={
-                                                        activity.priority === 'high' ? 'destructive' :
-                                                            activity.priority === 'medium' ? 'default' :
-                                                                'secondary'
-                                                    }
-                                                    className="text-xs"
-                                                >
-                                                    {activity.priority}
-                                                </Badge>
-                                                <Badge
-                                                    variant={
-                                                        activity.status === 'resolved' ? 'default' :
-                                                            activity.status === 'in_progress' ? 'secondary' :
-                                                                'outline'
-                                                    }
-                                                    className="text-xs whitespace-nowrap"
-                                                >
-                                                    {activity.status.replace('_', ' ')}
-                                                </Badge>
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-wrap items-center text-sm text-muted-foreground gap-x-2 gap-y-1">
-                                            <span className="truncate">{activity.action}</span>
-                                            {activity.assignedTo && (
-                                                <>
-                                                    <span>•</span>
-                                                    <span className="truncate">assigned to {activity.assignedTo}</span>
-                                                </>
-                                            )}
-                                            <span>•</span>
-                                            <span className="truncate">{formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))
-                        )}
                     </div>
                 </Card>
             </div>
