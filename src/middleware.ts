@@ -50,7 +50,14 @@ export async function middleware(request: NextRequest) {
 
         // If we have a session but trying to access public routes (except home)
         if (session && isPublicRoute && pathname !== '/') {
-            const userRole = session.user.app_metadata?.role || 'user'
+            // Get user role from profiles
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', session.user.id)
+                .single()
+
+            const userRole = profile?.role || 'user'
             let redirectUrl: string
 
             switch (userRole) {
@@ -75,7 +82,14 @@ export async function middleware(request: NextRequest) {
 
         // Check role-based access
         if (session) {
-            const userRole = session.user.app_metadata?.role || 'user'
+            // Get user role from profiles
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', session.user.id)
+                .single()
+
+            const userRole = profile?.role || 'user'
             const allowedPaths = ROLE_ROUTES[userRole as keyof typeof ROLE_ROUTES]
 
             // Check if the current path starts with any of the allowed paths

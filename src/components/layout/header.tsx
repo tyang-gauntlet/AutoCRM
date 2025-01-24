@@ -5,15 +5,34 @@ import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { LogOut, Settings, Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export function Header() {
     const { user, signOut } = useAuth()
     const [isSigningOut, setIsSigningOut] = useState(false)
+    const [userRole, setUserRole] = useState<string>('user')
+    const supabase = createClientComponentClient()
+
+    // Fetch user role from profiles
+    useEffect(() => {
+        if (user) {
+            const fetchRole = async () => {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', user.id)
+                    .single()
+
+                setUserRole(profile?.role || 'user')
+            }
+            fetchRole()
+        }
+    }, [user, supabase])
 
     // Check for admin and reviewer roles
-    const isAdmin = user?.app_metadata?.role === 'admin'
-    const isReviewer = user?.app_metadata?.role === 'reviewer'
+    const isAdmin = userRole === 'admin'
+    const isReviewer = userRole === 'reviewer'
 
     const handleSignOut = async (e: React.MouseEvent) => {
         e.preventDefault()

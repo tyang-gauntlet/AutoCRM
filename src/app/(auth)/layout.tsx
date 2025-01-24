@@ -4,6 +4,7 @@ import * as React from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useEffect } from 'react'
 import { Header } from '@/components/layout/header'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,27 +27,40 @@ export default function AuthLayout({
     // Check role and redirect if needed
     useEffect(() => {
         if (user) {
-            const userRole = user.app_metadata?.role || 'user'
-            const path = window.location.pathname
+            const supabase = createClientComponentClient()
 
-            // Updated role-based routing
-            switch (userRole) {
-                case 'admin':
-                    if (path.startsWith('/user') || path.startsWith('/reviewer')) {
-                        window.location.replace('/admin/dashboard')
-                    }
-                    break
-                case 'reviewer':
-                    if (path.startsWith('/user') || path.startsWith('/admin')) {
-                        window.location.replace('/reviewer/dashboard')
-                    }
-                    break
-                case 'user':
-                    if (path.startsWith('/admin') || path.startsWith('/reviewer')) {
-                        window.location.replace('/user/dashboard')
-                    }
-                    break
+            // Fetch user's role from profiles
+            const fetchRole = async () => {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', user.id)
+                    .single()
+
+                const userRole = profile?.role || 'user'
+                const path = window.location.pathname
+
+                // Updated role-based routing
+                switch (userRole) {
+                    case 'admin':
+                        if (path.startsWith('/user') || path.startsWith('/reviewer')) {
+                            window.location.replace('/admin/dashboard')
+                        }
+                        break
+                    case 'reviewer':
+                        if (path.startsWith('/user') || path.startsWith('/admin')) {
+                            window.location.replace('/reviewer/dashboard')
+                        }
+                        break
+                    case 'user':
+                        if (path.startsWith('/admin') || path.startsWith('/reviewer')) {
+                            window.location.replace('/user/dashboard')
+                        }
+                        break
+                }
             }
+
+            fetchRole()
         }
     }, [user])
 

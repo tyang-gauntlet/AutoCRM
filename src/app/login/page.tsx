@@ -54,7 +54,14 @@ export default function LoginPage() {
                 }
                 console.log('[Login] Verified session present?', !!verifySession)
 
-                const role = data.session?.user.app_metadata?.role || 'user'
+                // Get user role from profiles
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', data.session.user.id)
+                    .single()
+
+                const role = profile?.role || 'user'
                 console.log('[Login] User role:', role)
 
                 // Add a small delay to ensure session is properly set

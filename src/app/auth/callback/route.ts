@@ -31,8 +31,14 @@ export async function GET(request: NextRequest) {
             return NextResponse.redirect(new URL('/login', request.url))
         }
 
-        // Get user role and redirect accordingly
-        const userRole = session.user?.app_metadata?.role || 'user'
+        // Get user role from profiles
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single()
+
+        const userRole = profile?.role || 'user'
         let redirectPath: string
 
         switch (userRole) {
