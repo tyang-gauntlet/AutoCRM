@@ -34,6 +34,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      auth_sync: {
+        Row: {
+          email: string | null
+          id: string
+          last_sign_in_at: string | null
+          role: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          email?: string | null
+          id: string
+          last_sign_in_at?: string | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          email?: string | null
+          id?: string
+          last_sign_in_at?: string | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           company: string | null
@@ -234,6 +258,41 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      ticket_feedback: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          id: string
+          rating: number
+          ticket_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          rating: number
+          ticket_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          rating?: number
+          ticket_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_feedback_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ticket_messages: {
         Row: {

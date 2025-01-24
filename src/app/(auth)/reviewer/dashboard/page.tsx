@@ -8,12 +8,8 @@ import {
     Clock,
     CheckCircle2,
     AlertCircle,
-    ArrowRight,
-    CheckCircle,
-    XCircle,
-    Clock3,
-    AlertTriangle,
     Search,
+    StarIcon,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useReviewerTickets } from '@/hooks/use-reviewer-tickets'
@@ -27,12 +23,12 @@ import {
 } from "@/components/ui/tooltip"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import { TicketDetail } from '@/components/tickets/ticket-detail'
 import { useTicketDetails } from '@/hooks/use-ticket-details'
 import type { TicketWithDetails } from '@/types/tickets'
 import { ReviewerTicketView } from '@/components/tickets/reviewer-ticket-view'
 import { AssignedIndicator } from '@/components/tickets/assigned-indicator'
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 
 export default function ReviewerDashboard() {
     const { tickets, loading, assignTicket } = useReviewerTickets()
@@ -245,6 +241,23 @@ export default function ReviewerDashboard() {
                             Select a ticket to view details
                         </div>
                     )}
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Link href="/reviewer/feedback">
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">View Feedback</CardTitle>
+                                <StarIcon className="h-4 w-4 text-yellow-400" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">Feedback</div>
+                                <p className="text-xs text-muted-foreground">
+                                    View and analyze customer feedback
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </Link>
                 </div>
             </div>
         </>

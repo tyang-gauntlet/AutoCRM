@@ -7,12 +7,13 @@ import { LogOut, Settings, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import type { Database } from '@/types/database'
 
 export function Header() {
     const { user, signOut } = useAuth()
     const [isSigningOut, setIsSigningOut] = useState(false)
     const [userRole, setUserRole] = useState<string>('user')
-    const supabase = createClientComponentClient()
+    const supabase = createClientComponentClient<Database>()
 
     // Fetch user role from profiles
     useEffect(() => {

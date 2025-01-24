@@ -1,13 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Session, User, AuthChangeEvent } from '@supabase/supabase-js'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import type { Database } from '@/types/database'
 
 export function useAuth() {
     const [user, setUser] = useState<null | User>(null)
     const [loading, setLoading] = useState(true)
-    const supabase = createClientComponentClient()
+    const supabase = createClientComponentClient<Database>()
 
     // Handle auth state changes
     const handleAuthStateChange = useCallback(async (event: AuthChangeEvent, session: Session | null) => {
