@@ -7,7 +7,7 @@ export type Ticket = Database['public']['Tables']['tickets']['Row'] & {
     assigned: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name'> | null
 }
 
-export function useTickets() {
+export function useTickets(priorityFilter?: string) {
     const [tickets, setTickets] = useState<Ticket[]>([])
     const [loading, setLoading] = useState(true)
     const supabase = createClientComponentClient<Database>()
@@ -17,15 +17,22 @@ export function useTickets() {
             const { data: { session } } = await supabase.auth.getSession()
             if (!session) return
 
-            const { data, error } = await supabase
+            let query = supabase
                 .from('tickets')
                 .select(`
                     *,
                     customer:customers(name),
                     assigned:profiles!tickets_assigned_to_fkey(full_name)
                 `)
-                .eq('created_by', session.user.id)
                 .order('created_at', { ascending: false })
+
+            // If priority filter is provided, apply it
+            if (priorityFilter) {
+                const priorities = priorityFilter.split(',')
+                query = query.in('priority', priorities)
+            }
+
+            const { data, error } = await query
 
             if (!error && data) {
                 setTickets(data as unknown as Ticket[])
@@ -43,8 +50,7 @@ export function useTickets() {
                 {
                     event: '*',
                     schema: 'public',
-                    table: 'tickets',
-                    filter: `created_by=eq.${supabase.auth.getUser()}`
+                    table: 'tickets'
                 },
                 () => fetchTickets()
             )
@@ -53,7 +59,7 @@ export function useTickets() {
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [supabase])
+    }, [supabase, priorityFilter])
 
     return { tickets, loading }
 } 

@@ -65,11 +65,13 @@ export default function AdminDashboard() {
                     <Link href="/admin/tickets?priority=high,urgent">
                         <Button
                             variant="destructive"
-                            className="gap-2 animate-pulse shadow-lg"
+                            className="gap-2 animate-pulse shadow-lg relative"
                         >
-                            <AlertCircle className="h-4 w-4" />
-                            Urgent Queue ({ticketStats.highPriorityCount})
-                            <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full" />
+                            <div className="flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4" />
+                                Urgent Queue ({ticketStats.highPriorityCount})
+                            </div>
+                            <span className="absolute -top-2 -right-2 h-3 w-3 bg-red-500 rounded-full" />
                         </Button>
                     </Link>
                 )}
