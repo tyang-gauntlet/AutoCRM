@@ -22,8 +22,7 @@ export default function UserTickets() {
         created_at: ticket.created_at,
         updated_at: ticket.updated_at,
         customer: ticket.customer ? {
-            name: ticket.customer.name,
-            email: undefined // Add email if available in your data
+            name: ticket.customer.name
         } : undefined,
         assigned: ticket.assigned?.full_name ? {
             full_name: ticket.assigned.full_name

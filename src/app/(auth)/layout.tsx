@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useEffect } from 'react'
 import { Header } from '@/components/layout/header'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import type { Database } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,6 +15,7 @@ export default function AuthLayout({
     children: React.ReactNode
 }) {
     const { user, loading } = useAuth()
+    const supabase = createClientComponentClient<Database>()
 
     useEffect(() => {
         if (!loading && !user) {
@@ -27,8 +29,6 @@ export default function AuthLayout({
     // Check role and redirect if needed
     useEffect(() => {
         if (user) {
-            const supabase = createClientComponentClient()
-
             // Fetch user's role from profiles
             const fetchRole = async () => {
                 const { data: profile } = await supabase
@@ -62,7 +62,7 @@ export default function AuthLayout({
 
             fetchRole()
         }
-    }, [user])
+    }, [user, supabase])
 
     if (loading || !user) return null
 
