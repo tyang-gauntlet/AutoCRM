@@ -39,7 +39,7 @@ export default function ReviewerDashboard() {
     const [selectedTicketId, setSelectedTicketId] = React.useState<string | null>(null)
 
     // Get ticket details for the selected ticket
-    const { ticket: selectedTicket, messages, sendMessage } = useTicketDetails(
+    const { ticket: selectedTicket, messages, sendMessage, updateStatus, updatePriority } = useTicketDetails(
         selectedTicketId || undefined,
         'reviewer'
     )
@@ -52,6 +52,24 @@ export default function ReviewerDashboard() {
         const success = await assignTicket(ticketId)
         if (!success) {
             console.error('Failed to assign ticket')
+        }
+    }
+
+    const handleStatusUpdate = async (newStatus: string) => {
+        if (!selectedTicketId || !updateStatus) return
+
+        const success = await updateStatus(newStatus)
+        if (!success) {
+            console.error('Failed to update ticket status')
+        }
+    }
+
+    const handleUrgentUpdate = async () => {
+        if (!selectedTicketId || !updatePriority || !selectedTicket) return
+
+        const success = await updatePriority('urgent')
+        if (!success) {
+            console.error('Failed to update ticket priority')
         }
     }
 
@@ -184,46 +202,6 @@ export default function ReviewerDashboard() {
 
             {/* Main content area */}
             <div className="flex-1 overflow-hidden flex flex-col">
-                {/* Status action buttons */}
-                <div className="flex items-center justify-end gap-2 p-4 border-b">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={selectedTickets.length === 0}
-                        className="h-8 w-8"
-                        title="Mark as resolved"
-                    >
-                        <CheckCircle className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={selectedTickets.length === 0}
-                        className="h-8 w-8"
-                        title="Mark as in progress"
-                    >
-                        <Clock3 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={selectedTickets.length === 0}
-                        className="h-8 w-8"
-                        title="Mark as urgent"
-                    >
-                        <AlertTriangle className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={selectedTickets.length === 0}
-                        className="h-8 w-8"
-                        title="Close ticket"
-                    >
-                        <XCircle className="h-4 w-4" />
-                    </Button>
-                </div>
-
                 {/* Ticket detail or placeholder */}
                 <div className="flex-1 overflow-auto">
                     {selectedTicketWithDetails ? (
@@ -232,6 +210,8 @@ export default function ReviewerDashboard() {
                             messages={messages || []}
                             sendMessage={sendMessage}
                             onAssign={selectedTicket && !selectedTicket.assigned_to ? () => handleAssign(selectedTicket.id) : undefined}
+                            onStatusUpdate={handleStatusUpdate}
+                            onPriorityUpdate={handleUrgentUpdate}
                         />
                     ) : (
                         <div className="h-full flex items-center justify-center text-muted-foreground">

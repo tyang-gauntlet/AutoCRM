@@ -8,19 +8,30 @@ import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import { priorityColors, statusColors } from '@/constants/ticket'
 import type { TicketWithDetails, TicketMessage } from '@/types/tickets'
+import { CheckCircle, Clock3, AlertTriangle, XCircle, UserPlus } from 'lucide-react'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface ReviewerTicketViewProps {
     ticket: TicketWithDetails
     messages: TicketMessage[]
     sendMessage: (message: string) => Promise<boolean>
     onAssign?: () => Promise<void>
+    onStatusUpdate?: (status: string) => Promise<void>
+    onPriorityUpdate?: () => Promise<void>
 }
 
 export function ReviewerTicketView({
     ticket,
     messages,
     sendMessage,
-    onAssign
+    onAssign,
+    onStatusUpdate,
+    onPriorityUpdate
 }: ReviewerTicketViewProps) {
     const [message, setMessage] = React.useState('')
     const messagesEndRef = React.useRef<HTMLDivElement>(null)
@@ -49,16 +60,93 @@ export function ReviewerTicketView({
     return (
         <div className="flex flex-col h-full">
             {/* Header */}
-            <div className="flex items-start justify-between p-4">
-                <div className="space-y-1.5">
+            <div className="flex items-start p-4">
+                <div className="space-y-1.5 w-full">
                     <div className="flex items-center gap-2">
                         <Avatar className="h-8 w-8">
                             <AvatarFallback>
                                 {customerInitial}
                             </AvatarFallback>
                         </Avatar>
-                        <div>
-                            <h2 className="text-lg font-semibold">{ticket.title}</h2>
+                        <div className="flex-1 w-full">
+                            <div className="w-full flex items-center justify-between">
+                                <h2 className="text-lg font-semibold">{ticket.title}</h2>
+                                <div className="flex items-center space-x-2">
+                                    <TooltipProvider delayDuration={100}>
+                                        {onAssign && !ticket.assigned && (
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 hover:bg-purple-100 hover:text-purple-700 text-purple-600"
+                                                        onClick={onAssign}
+                                                    >
+                                                        <UserPlus className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom">Assign to me</TooltipContent>
+                                            </Tooltip>
+                                        )}
+
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 hover:bg-green-100 hover:text-green-700 text-green-600"
+                                                    onClick={() => onStatusUpdate?.('resolved')}
+                                                >
+                                                    <CheckCircle className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom">Mark as resolved</TooltipContent>
+                                        </Tooltip>
+
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 hover:bg-blue-100 hover:text-blue-700 text-blue-600"
+                                                    onClick={() => onStatusUpdate?.('in_progress')}
+                                                >
+                                                    <Clock3 className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom">Mark as in progress</TooltipContent>
+                                        </Tooltip>
+
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 hover:bg-yellow-100 hover:text-yellow-700 text-yellow-600"
+                                                    onClick={onPriorityUpdate}
+                                                >
+                                                    <AlertTriangle className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom">Set priority to urgent</TooltipContent>
+                                        </Tooltip>
+
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 hover:bg-red-100 hover:text-red-700 text-red-600"
+                                                    onClick={() => onStatusUpdate?.('closed')}
+                                                >
+                                                    <XCircle className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom">Close ticket</TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
+                            </div>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <span>{customerIdentifier}</span>
                                 <span>•</span>
@@ -75,11 +163,6 @@ export function ReviewerTicketView({
                         </Badge>
                     </div>
                 </div>
-                {onAssign && !ticket.assigned && (
-                    <Button onClick={onAssign}>
-                        Assign to Me
-                    </Button>
-                )}
             </div>
 
             <Separator />

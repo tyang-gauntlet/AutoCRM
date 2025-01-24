@@ -27,6 +27,7 @@ type Message = {
 type TicketActions = {
     sendMessage: (content: string) => Promise<boolean>
     updateStatus?: (newStatus: string) => Promise<boolean>
+    updatePriority?: (newPriority: TicketPriority) => Promise<boolean>
     assignToMe?: () => Promise<boolean>
 }
 
@@ -202,6 +203,26 @@ export function useTicketDetails(ticketId: string | undefined, role?: 'reviewer'
         }
     }, [ticketId, supabase])
 
+    // Update priority (reviewer only)
+    const updatePriority = useCallback(async (newPriority: TicketPriority) => {
+        if (!ticketId) return false
+
+        try {
+            const { error } = await supabase
+                .from('tickets')
+                .update({ priority: newPriority })
+                .eq('id', ticketId)
+
+            if (error) throw error
+
+            setTicket(current => current ? { ...current, priority: newPriority } : null)
+            return true
+        } catch (error) {
+            console.error('Error updating priority:', error)
+            return false
+        }
+    }, [ticketId, supabase])
+
     // Assign to me (reviewer only)
     const assignToMe = useCallback(async () => {
         if (!ticketId) return false
@@ -337,6 +358,7 @@ export function useTicketDetails(ticketId: string | undefined, role?: 'reviewer'
             sendMessage: async () => false,
             ...(role === 'reviewer' ? {
                 updateStatus: async () => false,
+                updatePriority: async () => false,
                 assignToMe: async () => false,
             } : {})
         }
@@ -349,6 +371,7 @@ export function useTicketDetails(ticketId: string | undefined, role?: 'reviewer'
         sendMessage,
         ...(role === 'reviewer' ? {
             updateStatus,
+            updatePriority,
             assignToMe,
         } : {})
     }

@@ -142,13 +142,6 @@ VALUES
     now()
   );
 
--- Then create profiles for the users
-INSERT INTO public.profiles (id, full_name, role)
-VALUES
-  ('d0d4dc14-7c31-4c26-87fa-31e0c0f40c91', 'Admin User', 'admin'),
-  ('e16c304f-87f9-4d4c-a5c8-26a551a4c425', 'Regular User', 'user'),
-  ('f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f', 'Ticket Reviewer', 'reviewer');
-
 -- Seed data for customers
 INSERT INTO public.customers (id, name, email, phone, company, status)
 VALUES
@@ -169,7 +162,23 @@ UPDATE auth.users
 SET email_confirmed_at = CURRENT_TIMESTAMP
 WHERE email IN ('admin@example.com', 'user@example.com', 'reviewer@example.com');
 
--- Add this after all inserts to force metadata sync
+-- Update the profiles with correct roles after trigger creates them
+UPDATE public.profiles 
+SET role = 'admin',
+    full_name = 'Admin User'
+WHERE id = 'd0d4dc14-7c31-4c26-87fa-31e0c0f40c91';
+
+UPDATE public.profiles 
+SET role = 'reviewer',
+    full_name = 'Ticket Reviewer'
+WHERE id = 'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f';
+
+UPDATE public.profiles 
+SET role = 'user',
+    full_name = 'Regular User'
+WHERE id = 'e16c304f-87f9-4d4c-a5c8-26a551a4c425';
+
+-- Add this after all updates to force metadata sync
 DO $$
 BEGIN
   -- Force trigger execution for all profiles
