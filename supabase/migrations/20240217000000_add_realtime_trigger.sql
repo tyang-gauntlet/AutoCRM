@@ -1,5 +1,16 @@
--- Enable realtime for tickets table
-alter publication supabase_realtime add table tickets;
+-- Enable realtime for tickets table if not already enabled
+do $$
+begin
+    if not exists (
+        select 1
+        from pg_publication_tables
+        where pubname = 'supabase_realtime'
+        and schemaname = 'public'
+        and tablename = 'tickets'
+    ) then
+        alter publication supabase_realtime add table tickets;
+    end if;
+end $$;
 
 -- Create a function to notify about ticket changes
 create or replace function public.handle_ticket_change()

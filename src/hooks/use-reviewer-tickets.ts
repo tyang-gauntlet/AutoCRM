@@ -3,8 +3,9 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/types/database'
 
 export type Ticket = Database['public']['Tables']['tickets']['Row'] & {
-    customer: Pick<Database['public']['Tables']['customers']['Row'], 'name'> | null
+    customer: Pick<Database['public']['Tables']['customers']['Row'], 'name' | 'email'> | null
     assigned: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name'> | null
+    creator: Pick<Database['public']['Tables']['profiles']['Row'], 'email'> | null
 }
 
 export function useReviewerTickets() {
@@ -16,18 +17,69 @@ export function useReviewerTickets() {
         const { data: { session } } = await supabase.auth.getSession()
         if (!session) return
 
-        const { data, error } = await supabase
+        // Get user's profile to check role
+        const { data: profileData } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single()
+
+        const isReviewer = profileData?.role === 'reviewer' || profileData?.role === 'admin'
+
+        const query = supabase
             .from('tickets')
             .select(`
                 *,
-                customer:customers(name),
-                assigned:profiles(full_name)
+                customer:customers(name, email),
+                assigned:profiles!tickets_assigned_to_fkey(full_name)
             `)
-            .or(`assigned_to.eq.${session.user.id},and(assigned_to.is.null,status.eq.open)`)
             .order('created_at', { ascending: false })
 
-        if (!error && data) {
-            setTickets(data as unknown as Ticket[])
+        // Apply different filters based on role
+        if (isReviewer) {
+            query.or(`assigned_to.eq.${session.user.id},and(assigned_to.is.null,status.eq.open)`)
+        } else {
+            query.eq('created_by', session.user.id)
+        }
+
+        const { data: rawData, error } = await query
+
+        if (!error && rawData) {
+            // Get all unique creator IDs
+            const creatorIds = Array.from(new Set(
+                rawData
+                    .map(t => t.created_by)
+                    .filter((id): id is string => id !== null)
+            ))
+
+            console.log('Creator IDs:', creatorIds)
+
+            // Fetch creator emails using the get_user_emails function
+            const { data: creatorData, error: creatorError } = await supabase
+                .rpc('get_user_emails', {
+                    user_ids: creatorIds
+                })
+
+            if (creatorError) {
+                console.error('Error fetching creator data:', creatorError)
+            }
+            console.log('Creator data:', creatorData)
+
+            // Create a map of creator IDs to emails
+            const creatorMap = new Map(creatorData?.map(c => [c.id, c.email]) || [])
+            console.log('Creator map:', Object.fromEntries(creatorMap))
+
+            const formattedData = rawData.map(ticket => {
+                const creatorEmail = ticket.created_by ? creatorMap.get(ticket.created_by) : null
+                console.log('Ticket creator:', ticket.created_by, 'Email:', creatorEmail)
+                return {
+                    ...ticket,
+                    customer: ticket.customer,
+                    assigned: ticket.assigned,
+                    creator: ticket.created_by ? { email: creatorEmail || 'Unknown' } : null
+                }
+            })
+            setTickets(formattedData as unknown as Ticket[])
         } else {
             console.error('Error fetching tickets:', error)
         }
