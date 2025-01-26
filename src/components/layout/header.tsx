@@ -6,15 +6,22 @@ import { useRole } from '@/hooks/use-role'
 import { Button } from '@/components/ui/button'
 import { LogOut, Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { ROLE_REDIRECTS } from '@/constants/auth'
+import { memo } from 'react'
 
-export function Header() {
-    const { user, signOut, loading: authLoading } = useAuth()
+export const Header = memo(function Header() {
+    const { user, signOut, loading: authLoading, session } = useAuth()
     const { role, loading: roleLoading, error } = useRole()
     const router = useRouter()
     const [isSigningOut, setIsSigningOut] = useState(false)
+
+    // Memoize expensive computations
+    const userInfo = useMemo(() => ({
+        name: session?.user?.name,
+        email: session?.user?.email
+    }), [session?.user])
 
     const handleSignOut = async (e: React.MouseEvent) => {
         e.preventDefault()
@@ -58,7 +65,7 @@ export function Header() {
                             <span className="text-sm text-destructive">{error}</span>
                         )}
                         <div className="text-sm text-muted-foreground mr-4">
-                            <span className="font-medium text-foreground">{user.email}</span>
+                            <span className="font-medium text-foreground">{userInfo.email}</span>
                             <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
                                 {role.charAt(0).toUpperCase() + role.slice(1)}
                             </span>
@@ -81,4 +88,4 @@ export function Header() {
             </nav>
         </header>
     )
-} 
+}) 
