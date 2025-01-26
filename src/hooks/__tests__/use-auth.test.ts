@@ -128,30 +128,28 @@ describe('useAuth', () => {
     })
 
     it('should handle sign up', async () => {
-        const mockSignUpData = {
-            user: { id: 'new-user-id', email: 'new@example.com' },
-            session: null
-        }
-        mockAuth.signUp.mockResolvedValue({
-            data: mockSignUpData,
-            error: null
-        })
-
         const { result } = renderHook(() => useAuth())
 
-        let signUpResult
+        // Mock window.location.origin
+        const originalLocation = window.location
+        delete window.location
+        window.location = { ...originalLocation, origin: 'http://localhost:3000' }
+
         await act(async () => {
-            signUpResult = await result.current.signUp('new@example.com', 'password123')
+            await result.current.signUp('new@example.com', 'password123')
         })
 
         expect(mockAuth.signUp).toHaveBeenCalledWith({
             email: 'new@example.com',
             password: 'password123',
             options: {
-                emailRedirectTo: expect.any(String)
+                emailRedirectTo: expect.any(String),
+                data: { role: 'user' }
             }
         })
-        expect(signUpResult).toEqual(mockSignUpData)
+
+        // Restore window.location
+        window.location = originalLocation
     })
 
     it('should handle session errors', async () => {

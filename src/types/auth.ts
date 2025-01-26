@@ -11,5 +11,8 @@ export interface AuthState {
 export interface AuthActions {
     signIn: (email: string, password: string) => Promise<void>
     signOut: () => Promise<void>
-    signUp: (email: string, password: string) => Promise<{ user: User | null; session: Session | null } | void>
+    signUp: (email: string, password: string) => Promise<{
+        data: { user: User | null; session: Session | null } | null;
+        error: Error | null;
+    }>
 } 

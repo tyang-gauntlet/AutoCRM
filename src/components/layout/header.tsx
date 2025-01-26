@@ -33,47 +33,52 @@ export function Header() {
 
     if (authLoading || roleLoading) {
         return (
-            <nav className="border-b">
-                <div className="flex h-16 items-center px-4">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                </div>
-            </nav>
+            <header>
+                <nav className="border-b">
+                    <div className="flex h-16 items-center px-4">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                    </div>
+                </nav>
+            </header>
         )
     }
 
     if (!user) return null
 
     return (
-        <nav className="border-b">
-            <div className="flex h-16 items-center px-4">
-                <Link href={ROLE_REDIRECTS[role]}>
-                    <h1 className="text-xl font-bold">AutoCRM</h1>
-                </Link>
+        <header>
+            <nav className="border-b">
+                <div className="flex h-16 items-center px-4">
+                    <Link href={ROLE_REDIRECTS[role]}>
+                        <h1 className="text-xl font-bold">AutoCRM</h1>
+                    </Link>
 
-                <div className="ml-auto flex items-center space-x-4">
-                    {error && (
-                        <span className="text-sm text-destructive">{error}</span>
-                    )}
-                    <div className="text-sm text-muted-foreground mr-4">
-                        <span className="font-medium text-foreground">{user.email}</span>
-                        <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-                            {role.charAt(0).toUpperCase() + role.slice(1)}
-                        </span>
-                    </div>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleSignOut}
-                        disabled={isSigningOut}
-                    >
-                        {isSigningOut ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <LogOut className="h-4 w-4" />
+                    <div className="ml-auto flex items-center space-x-4">
+                        {error && (
+                            <span className="text-sm text-destructive">{error}</span>
                         )}
-                    </Button>
+                        <div className="text-sm text-muted-foreground mr-4">
+                            <span className="font-medium text-foreground">{user.email}</span>
+                            <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                                {role.charAt(0).toUpperCase() + role.slice(1)}
+                            </span>
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleSignOut}
+                            disabled={isSigningOut}
+                            aria-label="Sign out"
+                        >
+                            {isSigningOut ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <LogOut className="h-4 w-4" />
+                            )}
+                        </Button>
+                    </div>
                 </div>
-            </div>
-        </nav>
+            </nav>
+        </header>
     )
 } 
