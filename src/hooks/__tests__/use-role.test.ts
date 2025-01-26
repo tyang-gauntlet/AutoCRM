@@ -23,21 +23,37 @@ describe('useRole', () => {
         mockEq.mockReturnValue({ single: mockSingle })
         mockFrom.mockReturnValue({ select: mockSelect })
 
-            // Setup Supabase client mock
+            // Setup Supabase client mock with proper return value
             ; (createClientComponentClient as jest.Mock).mockReturnValue({
                 from: mockFrom
             })
             ; (useAuth as jest.Mock).mockReturnValue({ user: mockUser })
+
+        // Default successful response
+        mockSingle.mockResolvedValue({
+            data: { role: 'user' },
+            error: null
+        })
     })
 
-    it('should initialize with loading state and default role', () => {
+    it('should initialize with loading state and default role', async () => {
         const { result } = renderHook(() => useRole())
+
+        // Initial state
         expect(result.current.loading).toBe(true)
+        expect(result.current.role).toBe('user')
+
+        // Wait for effect
+        await act(async () => {
+            await new Promise(resolve => setTimeout(resolve, 0))
+        })
+
+        // Final state
+        expect(result.current.loading).toBe(false)
         expect(result.current.role).toBe('user')
     })
 
     it('should fetch and set user role', async () => {
-        // Setup mock response
         mockSingle.mockResolvedValue({
             data: { role: 'admin' },
             error: null
@@ -45,12 +61,10 @@ describe('useRole', () => {
 
         const { result } = renderHook(() => useRole())
 
-        // Wait for the effect to run and state to update
         await act(async () => {
-            await new Promise(resolve => setTimeout(resolve, 100))
+            await new Promise(resolve => setTimeout(resolve, 0))
         })
 
-        // Verify the final state
         expect(result.current.loading).toBe(false)
         expect(result.current.role).toBe('admin')
         expect(result.current.isAdmin).toBe(true)
@@ -62,7 +76,7 @@ describe('useRole', () => {
         const { result } = renderHook(() => useRole())
 
         await act(async () => {
-            await new Promise(resolve => setTimeout(resolve, 100))
+            await new Promise(resolve => setTimeout(resolve, 0))
         })
 
         expect(result.current.loading).toBe(false)
