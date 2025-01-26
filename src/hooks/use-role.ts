@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/types/database'
 import type { UserRole } from '@/constants/auth'
-import { useAuth } from './useAuth'
+import { useAuth } from './use-auth'
 
 export function useRole() {
     const { user } = useAuth()

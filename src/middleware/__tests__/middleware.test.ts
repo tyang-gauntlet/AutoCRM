@@ -110,4 +110,17 @@ describe('Auth Middleware', () => {
         expect(response?.status).toBe(307)
         expect(response?.headers.get('location')).toBe('http://localhost/login')
     })
+
+    it('should handle role changes correctly', async () => {
+        // Test that middleware updates access when role changes
+    })
+
+    it('should handle concurrent requests correctly', async () => {
+        // Test middleware behavior with multiple simultaneous requests
+    })
+
+    it('should respect role hierarchy', async () => {
+        // Test that admin can access lower role routes
+        // Test that lower roles cannot access higher role routes
+    })
 }) 

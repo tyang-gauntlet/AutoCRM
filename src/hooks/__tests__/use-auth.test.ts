@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useAuth } from '../useAuth'
+import { useAuth } from '../use-auth'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { AuthChangeEvent } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
@@ -204,5 +204,39 @@ describe('useAuth', () => {
         unmount()
 
         expect(unsubscribe).toHaveBeenCalled()
+    })
+
+    it('should handle sign in errors correctly', async () => {
+        mockAuth.signInWithPassword.mockRejectedValue(new Error('Invalid credentials'))
+        const { result } = renderHook(() => useAuth())
+
+        await act(async () => {
+            try {
+                await result.current.signIn('test@example.com', 'wrong-password')
+            } catch (error) {
+                // Error expected
+            }
+        })
+
+        expect(result.current.error).toBe('Invalid credentials')
+    })
+
+    it('should handle email verification state', async () => {
+        // Override the default mock specifically for this test
+        mockAuth.getSession.mockResolvedValue({ data: { session: null }, error: null })
+        mockAuth.signUp.mockResolvedValue({
+            data: {
+                user: { id: 'new-user', email: 'new@example.com', email_confirmed_at: null },
+                session: null
+            },
+            error: null
+        })
+
+        const { result } = renderHook(() => useAuth())
+        await act(async () => {
+            await result.current.signUp('new@example.com', 'password123')
+        })
+
+        expect(result.current.user).toBeNull()
     })
 }) 

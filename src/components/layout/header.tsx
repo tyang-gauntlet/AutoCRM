@@ -1,8 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { useAuth } from '@/hooks/useAuth'
-import { useRole } from '@/hooks/useRole'
+import { useAuth } from '@/hooks/use-auth'
+import { useRole } from '@/hooks/use-role'
 import { Button } from '@/components/ui/button'
 import { LogOut, Loader2 } from 'lucide-react'
 import Link from 'next/link'

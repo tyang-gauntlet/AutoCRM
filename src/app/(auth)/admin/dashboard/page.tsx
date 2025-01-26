@@ -16,8 +16,8 @@ import {
     Star,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useUserStats } from '@/hooks/useUserStats'
-import { useTicketStats } from '@/hooks/useTicketStats'
+import { useUserStats } from '@/hooks/use-user-stats'
+import { useTicketStats } from '@/hooks/use-ticket-stats'
 import { formatDistanceToNow } from 'date-fns'
 import { Badge } from "@/components/ui/badge"
 

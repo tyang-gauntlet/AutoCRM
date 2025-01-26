@@ -1,10 +1,10 @@
 import { renderHook, act } from '@testing-library/react'
-import { useRole } from '../useRole'
+import { useRole } from '../use-role'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useAuth } from '../useAuth'
+import { useAuth } from '../use-auth'
 
 vi.mock('@supabase/auth-helpers-nextjs')
-vi.mock('../useAuth')
+vi.mock('../use-auth')
 
 describe('useRole', () => {
     const mockUser = { id: 'test-user-id', email: 'test@example.com' }
