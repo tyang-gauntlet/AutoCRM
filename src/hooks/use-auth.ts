@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { Session, User, AuthChangeEvent } from '@supabase/supabase-js'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useRouter } from 'next/navigation'
@@ -19,6 +19,8 @@ export function useAuth(): AuthState & AuthActions {
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
     const supabase = createClientComponentClient<Database>()
+    const [session, setSession] = useState<Session | null>(null)
+    const sessionCache = useRef<{ [key: string]: Session }>({})
 
     const handleAuthStateChange = useCallback(async (event: AuthChangeEvent, session: Session | null) => {
         if (event === 'SIGNED_OUT') {
@@ -43,6 +45,20 @@ export function useAuth(): AuthState & AuthActions {
         }
         setLoading(false)
     }, [router])
+
+    const getSession = useCallback(async () => {
+        const cachedSession = sessionCache.current['current']
+        if (cachedSession) {
+            return cachedSession
+        }
+
+        const response = await fetch('/api/auth/session')
+        const data = await response.json()
+
+        sessionCache.current['current'] = data
+        setSession(data)
+        return data
+    }, [])
 
     useEffect(() => {
         const checkSession = async () => {
