@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
@@ -13,15 +13,21 @@ export default function SignUpPage() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [error, setError] = useState<string | null>(null)
+    const [loading, setLoading] = useState(false)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        setLoading(true)
         try {
-            await signUp(email, password)
-            router.push('/user/dashboard')
+            const { error: signUpError } = await signUp(email, password)
+            if (signUpError) throw signUpError
+            // Wait for the middleware to handle redirect
+            await new Promise(resolve => setTimeout(resolve, 1000))
         } catch (error: any) {
             setError(error?.message || 'Error creating account')
             console.error(error)
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -73,7 +79,7 @@ export default function SignUpPage() {
                     </div>
 
                     <div>
-                        <Button type="submit" className="w-full">
+                        <Button type="submit" className="w-full" disabled={loading}>
                             Sign up
                         </Button>
                     </div>

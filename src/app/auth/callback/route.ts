@@ -19,42 +19,18 @@ export async function GET(request: NextRequest) {
         const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
         // Exchange the code for a session
-        const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code)
+        const { error } = await supabase.auth.exchangeCodeForSession(code)
 
         if (error) {
-            console.error('[Auth Callback] Error exchanging code for session:', error)
+            console.error('[Auth Callback] Error:', error)
             return NextResponse.redirect(new URL('/login', request.url))
         }
 
-        if (!session) {
-            console.error('[Auth Callback] No session returned')
-            return NextResponse.redirect(new URL('/login', request.url))
-        }
-
-        // Get user role from profiles
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single()
-
-        const userRole = profile?.role || 'user'
-        let redirectPath: string
-
-        switch (userRole) {
-            case 'admin':
-                redirectPath = '/admin/dashboard'
-                break
-            case 'reviewer':
-                redirectPath = '/reviewer/dashboard'
-                break
-            default:
-                redirectPath = '/user/dashboard'
-        }
-
-        return NextResponse.redirect(new URL(redirectPath, request.url))
+        // Redirect to root to let middleware handle the role-based redirect
+        const redirectTo = requestUrl.searchParams.get('redirectTo') || '/'
+        return NextResponse.redirect(new URL(redirectTo, request.url))
     } catch (error) {
-        console.error('[Auth Callback] Unexpected error:', error)
+        console.error('[Auth Callback] Error:', error)
         return NextResponse.redirect(new URL('/login', request.url))
     }
 }

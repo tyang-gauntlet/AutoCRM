@@ -248,15 +248,17 @@ export function useTicketDetails(ticketId: string | undefined, role?: 'reviewer'
     }, [ticketId, supabase, fetchTicket])
 
     useEffect(() => {
-        console.log('Setting up subscriptions for ticket:', ticketId)
-        let mounted = true
+        // If there's no ticket, don't even subscribe
+        if (!ticketId) return;
+        let mounted = true;
 
+        console.log('Setting up subscriptions for ticket:', ticketId);
         const fetchData = async () => {
-            if (!mounted) return
-            await fetchTicket()
-        }
+            if (!mounted) return;
+            await fetchTicket();
+        };
 
-        fetchData()
+        fetchData();
 
         // Subscribe to ticket changes
         const ticketChannel = supabase
@@ -268,15 +270,12 @@ export function useTicketDetails(ticketId: string | undefined, role?: 'reviewer'
                     table: 'tickets',
                     filter: `id=eq.${ticketId}`
                 },
-                async (payload) => {
-                    console.log('Ticket update received:', payload)
-                    if (!mounted) return
-                    await fetchData()
+                async payload => {
+                    if (!mounted) return;
+                    await fetchData();
                 }
             )
-            .subscribe((status) => {
-                console.log('Ticket subscription status:', status)
-            })
+            .subscribe();
 
         // Subscribe to messages
         const messageChannel = supabase
@@ -335,19 +334,18 @@ export function useTicketDetails(ticketId: string | undefined, role?: 'reviewer'
                     }
                 }
             )
-            .subscribe((status) => {
-                console.log('Message subscription status:', status)
-            })
+            .subscribe();
 
         return () => {
-            console.log('Cleaning up subscriptions for ticket:', ticketId)
-            mounted = false
-            ticketChannel.unsubscribe()
-            messageChannel.unsubscribe()
-            supabase.removeChannel(ticketChannel)
-            supabase.removeChannel(messageChannel)
-        }
-    }, [ticketId, supabase])
+            console.log('Cleaning up subscriptions for ticket:', ticketId);
+            mounted = false;
+            ticketChannel.unsubscribe();
+            messageChannel.unsubscribe();
+
+            supabase.removeChannel(ticketChannel);
+            supabase.removeChannel(messageChannel);
+        };
+    }, [ticketId]);
 
     // Return empty state if no ticketId
     if (!ticketId) {

@@ -27,7 +27,7 @@ import {
     UserCheck,
     RefreshCw
 } from 'lucide-react'
-import { useUsers } from '@/hooks/useUsers'
+import { useUsers } from '@/hooks/use-users'
 
 export const dynamic = 'force-dynamic'
 
