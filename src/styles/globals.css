@@ -1,0 +1,42 @@
+/* Add these to your globals.css */
+.resizable-handle {
+    position: absolute;
+    right: -4px;
+    top: 0;
+    height: 100%;
+    width: 8px;
+    cursor: col-resize;
+    background-color: transparent;
+    transition: background-color 0.2s;
+}
+
+.resizable-handle:hover,
+.resizable-handle:active {
+    background-color: hsl(var(--muted));
+}
+
+.table-cell-resizable {
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* Add these styles for the table */
+.table-cell-truncate {
+    max-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Ensure table takes full width */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Add hover effect for better UX */
+.table-row-hover:hover {
+    background-color: hsl(var(--muted));
+}

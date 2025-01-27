@@ -1,51 +1,46 @@
 export const dynamic = 'force-dynamic'
 
-import { supabase } from '@/lib/supabase'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { OpenAIEmbeddings } from 'langchain/embeddings/openai'
+
+const embeddings = new OpenAIEmbeddings()
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url)
         const query = searchParams.get('q')
-        const category = searchParams.get('category')
-        const limit = parseInt(searchParams.get('limit') || '10')
-        const offset = parseInt(searchParams.get('offset') || '0')
+        const threshold = parseFloat(searchParams.get('threshold') || '0.7')
+        const limit = parseInt(searchParams.get('limit') || '5')
 
         if (!query) {
             return NextResponse.json(
-                { error: 'Search query is required' },
+                { error: 'Query parameter required' },
                 { status: 400 }
             )
         }
 
-        const { data, error } = await supabase.rpc('search_kb_articles', {
-            search_query: query,
-            category_slug: category || undefined,
-            limit_val: limit,
-            offset_val: offset
-        })
+        const supabase = createRouteHandlerClient({ cookies })
 
-        if (error) {
-            console.error('Error searching knowledge base:', error)
-            return NextResponse.json(
-                { error: 'Failed to search knowledge base' },
-                { status: 500 }
-            )
-        }
+        // Generate embedding for search query
+        const queryEmbedding = await embeddings.embedQuery(query)
 
-        return NextResponse.json({
-            results: data,
-            metadata: {
-                query,
-                category,
-                limit,
-                offset
-            }
-        })
+        // Search using vector similarity
+        const { data: chunks, error } = await supabase
+            .rpc('match_kb_chunks', {
+                query_embedding: queryEmbedding,
+                match_threshold: threshold,
+                match_count: limit
+            })
+
+        if (error) throw error
+
+        return NextResponse.json({ results: chunks })
     } catch (error) {
-        console.error('Error in knowledge base search:', error)
+        console.error('Error searching knowledge base:', error)
         return NextResponse.json(
-            { error: 'Internal server error' },
+            { error: 'Error searching knowledge base' },
             { status: 500 }
         )
     }

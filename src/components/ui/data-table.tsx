@@ -7,6 +7,8 @@ import {
     useReactTable,
     SortingState,
     getSortedRowModel,
+    VisibilityState,
+    OnChangeFn,
 } from '@tanstack/react-table'
 
 import {
@@ -22,11 +24,15 @@ import { useState } from 'react'
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
+    columnVisibility?: VisibilityState
+    onColumnVisibilityChange?: OnChangeFn<VisibilityState>
 }
 
 export function DataTable<TData, TValue>({
     columns,
     data,
+    columnVisibility,
+    onColumnVisibilityChange,
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = useState<SortingState>([])
 
@@ -36,9 +42,12 @@ export function DataTable<TData, TValue>({
         getCoreRowModel: getCoreRowModel(),
         onSortingChange: setSorting,
         getSortedRowModel: getSortedRowModel(),
+        onColumnVisibilityChange,
         state: {
             sorting,
+            columnVisibility,
         },
+        enableHiding: true,
     })
 
     return (

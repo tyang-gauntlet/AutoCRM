@@ -202,260 +202,151 @@ VALUES
   ('Security & Privacy', 'security', 'Important information about security features, data protection, and privacy settings.'),
   ('Integrations', 'integrations', 'Guides for connecting AutoCRM with other tools and services in your workflow.');
 
--- Seed knowledge base articles with comprehensive content
-INSERT INTO public.kb_articles (title, slug, content, category_id, status, metadata)
-VALUES
-  (
+-- First, ensure we have all our tags
+insert into public.kb_tags (name, description) values
+    ('getting-started', 'Basic introduction and setup guides'),
+    ('troubleshooting', 'Common issues and their solutions'),
+    ('api', 'API documentation and examples'),
+    ('security', 'Security-related information'),
+    ('deployment', 'Deployment guides and best practices'),
+    ('configuration', 'Configuration and settings'),
+    ('best-practices', 'Recommended approaches and patterns'),
+    ('faq', 'Frequently asked questions'),
+    ('features', 'Feature documentation and usage'),
+    ('integrations', 'Third-party integration guides'),
+    ('updates', 'Product updates and changelog'),
+    ('tutorials', 'Step-by-step tutorials'),
+    ('reference', 'Technical reference documentation'),
+    ('architecture', 'System architecture documentation'),
+    ('performance', 'Performance optimization guides')
+on conflict (name) do nothing;
+
+-- Update existing articles with tags
+update public.kb_articles
+set tags = array['getting-started', 'configuration']
+where slug = 'getting-started-guide';
+
+update public.kb_articles
+set tags = array['security', 'best-practices']
+where slug = 'security-best-practices';
+
+update public.kb_articles
+set tags = array['troubleshooting', 'api']
+where slug = 'common-troubleshooting';
+
+update public.kb_articles
+set tags = array['api', 'integration']
+where slug = 'api-integration';
+
+update public.kb_articles
+set tags = array['account', 'getting-started']
+where slug = 'account-management';
+
+update public.kb_articles
+set tags = array['integration', 'configuration']
+where slug = 'popular-integrations';
+
+update public.kb_articles
+set tags = array['best-practices', 'support']
+where slug = 'support-team-best-practices';
+
+-- Add some new articles with tags
+INSERT INTO public.kb_articles (
+    id,
+    title,
+    content,
+    slug,
+    status,
+    created_by,
+    created_at,
+    updated_at,
+    category_id,
+    tags
+) VALUES
+(
+    'a1b2c3d4-e5f6-4a5b-8c7d-9e0f1a2b3c4d',
     'Getting Started with AutoCRM',
+    '# Getting Started with AutoCRM\n\nWelcome to AutoCRM! This comprehensive guide will help you get started with our platform and make the most of its features.\n\n## Quick Setup Guide\n\n1. **Account Setup**\n   - Log in to your account\n   - Complete your profile information\n   - Set up your preferences\n\n2. **Key Features**\n   - Ticket Management\n   - Knowledge Base\n   - AI Assistant\n   - Analytics Dashboard\n\n3. **First Steps**\n   - Create your first ticket\n   - Browse the knowledge base\n   - Set up notifications\n\n## Best Practices\n\n- Keep your profile updated\n- Check notifications regularly\n- Use ticket categories effectively\n\n## Need Help?\n\nContact our support team or use the AI assistant for immediate help.',
     'getting-started-guide',
-    '# Getting Started with AutoCRM
-
-Welcome to AutoCRM! This comprehensive guide will help you get started with our platform and make the most of its features.
-
-## Quick Setup Guide
-
-1. **Account Setup**
-   - Log in to your account
-   - Complete your profile information
-   - Set up your preferences
-
-2. **Key Features**
-   - Ticket Management
-   - Knowledge Base
-   - AI Assistant
-   - Analytics Dashboard
-
-3. **First Steps**
-   - Create your first ticket
-   - Browse the knowledge base
-   - Set up notifications
-
-## Best Practices
-
-- Keep your profile updated
-- Check notifications regularly
-- Use ticket categories effectively
-
-## Need Help?
-
-Contact our support team or use the AI assistant for immediate help.',
+    'published',
+    'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
+    NOW() - INTERVAL '30 days',
+    NOW() - INTERVAL '30 days',
     (SELECT id FROM public.kb_categories WHERE slug = 'getting-started'),
-    'published',
-    '{"view_count": 150, "helpful_count": 45}'
-  ),
-  (
+    ARRAY['getting-started', 'configuration']
+),
+(
+    'b2c3d4e5-f6a7-4b5b-8c7d-9e0f1a2b3c4d',
     'Security Best Practices',
+    '# Security Best Practices\n\nProtect your account and data with these essential security guidelines.',
     'security-best-practices',
-    '# Security Best Practices
-
-Protect your account and data with these essential security practices.
-
-## Password Guidelines
-
-- Use strong, unique passwords
-- Enable two-factor authentication
-- Change passwords regularly
-
-## Access Management
-
-1. **User Roles**
-   - Admin
-   - Support Agent
-   - Regular User
-
-2. **Permissions**
-   - Understanding access levels
-   - Managing team permissions
-   - Audit logs
-
-## Data Protection
-
-- Regular backups
-- Encryption standards
-- Privacy compliance',
+    'published',
+    'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
+    NOW() - INTERVAL '25 days',
+    NOW() - INTERVAL '25 days',
     (SELECT id FROM public.kb_categories WHERE slug = 'security'),
-    'published',
-    '{"view_count": 120, "helpful_count": 38}'
-  ),
-  (
-    'Troubleshooting Common Issues',
-    'common-troubleshooting',
-    '# Troubleshooting Common Issues
-
-Solutions to frequently encountered problems and how to resolve them quickly.
-
-## Login Issues
-
-1. **Cannot Log In**
-   - Clear browser cache
-   - Reset password
-   - Check email verification
-
-2. **Account Locked**
-   - Multiple failed attempts
-   - Security triggers
-   - Resolution steps
-
-## Performance
-
-- Browser compatibility
-- Cache clearing
-- System requirements
-
-## Error Messages
-
-Common error codes and their solutions:
-- Error 404: Page not found
-- Error 403: Access denied
-- Error 500: Server error',
-    (SELECT id FROM public.kb_categories WHERE slug = 'troubleshooting'),
-    'published',
-    '{"view_count": 200, "helpful_count": 75}'
-  ),
-  (
+    ARRAY['security', 'best-practices']
+),
+(
+    'c3d4e5f6-a7b8-4b5b-8c7d-9e0f1a2b3c4d',
     'API Integration Guide',
+    '# API Integration Guide\n\nComplete guide to integrating with our API platform.',
     'api-integration',
-    '# API Integration Guide
-
-Complete guide to integrating AutoCRM with your applications.
-
-## Authentication
-
-```javascript
-const api = new AutoCRM({
-  apiKey: "your-api-key",
-  environment: "production"
-});
-```
-
-## Common Endpoints
-
-1. **Tickets**
-   - GET /api/tickets
-   - POST /api/tickets
-   - PUT /api/tickets/{id}
-
-2. **Users**
-   - GET /api/users
-   - POST /api/users
-   - PUT /api/users/{id}
-
-## Rate Limits
-
-- 1000 requests per minute
-- Burst limit: 100 requests
-- Rate limit headers
-
-## Error Handling
-
-Best practices for handling API errors and responses.',
+    'published',
+    'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
+    NOW() - INTERVAL '20 days',
+    NOW() - INTERVAL '20 days',
     (SELECT id FROM public.kb_categories WHERE slug = 'api'),
+    ARRAY['api', 'integration']
+),
+(
+    'd4e5f6a7-b8c9-4b5b-8c7d-9e0f1a2b3c4d',
+    'Troubleshooting Common Issues',
+    '# Troubleshooting Guide\n\nSolutions to frequently encountered problems.',
+    'common-troubleshooting',
     'published',
-    '{"view_count": 180, "helpful_count": 60}'
-  ),
-  (
+    'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
+    NOW() - INTERVAL '15 days',
+    NOW() - INTERVAL '15 days',
+    (SELECT id FROM public.kb_categories WHERE slug = 'troubleshooting'),
+    ARRAY['troubleshooting', 'api']
+),
+(
+    'e5f6a7b8-c9d0-4b5b-8c7d-9e0f1a2b3c4d',
     'Account Management Guide',
+    '# Account Management\n\nLearn how to manage your account effectively.',
     'account-management',
-    '# Account Management Guide
-
-Learn how to manage your AutoCRM account effectively.
-
-## Profile Settings
-
-1. **Personal Information**
-   - Update contact details
-   - Change profile picture
-   - Set time zone
-
-2. **Notification Preferences**
-   - Email notifications
-   - In-app alerts
-   - Mobile push notifications
-
-## Subscription Management
-
-- View current plan
-- Upgrade options
-- Billing history
-
-## Team Management
-
-- Invite team members
-- Assign roles
-- Manage permissions',
+    'published',
+    'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
+    NOW() - INTERVAL '10 days',
+    NOW() - INTERVAL '10 days',
     (SELECT id FROM public.kb_categories WHERE slug = 'account'),
-    'published',
-    '{"view_count": 90, "helpful_count": 30}'
-  ),
-  (
+    ARRAY['account', 'getting-started']
+),
+(
+    'f6a7b8c9-d0e1-4b5b-8c7d-9e0f1a2b3c4d',
     'Integration with Popular Tools',
+    '# Popular Integrations\n\nConnect AutoCRM with your favorite tools.',
     'popular-integrations',
-    '# Integration with Popular Tools
-
-Connect AutoCRM with your favorite tools and services.
-
-## Available Integrations
-
-1. **Communication**
-   - Slack
-   - Microsoft Teams
-   - Discord
-
-2. **Project Management**
-   - Jira
-   - Trello
-   - Asana
-
-3. **CRM Systems**
-   - Salesforce
-   - HubSpot
-   - Zoho
-
-## Setup Guides
-
-Step-by-step instructions for each integration.
-
-## Troubleshooting
-
-Common integration issues and solutions.',
+    'published',
+    'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
+    NOW() - INTERVAL '5 days',
+    NOW() - INTERVAL '5 days',
     (SELECT id FROM public.kb_categories WHERE slug = 'integrations'),
-    'published',
-    '{"view_count": 85, "helpful_count": 28}'
-  ),
-  (
+    ARRAY['integration', 'configuration']
+),
+(
+    'a7b8c9d0-e1f2-4b5b-8c7d-9e0f1a2b3c4d',
     'Best Practices for Support Teams',
+    '# Support Team Best Practices\n\nOptimize your support workflow.',
     'support-team-best-practices',
-    '# Best Practices for Support Teams
-
-Optimize your support operations with these proven practices.
-
-## Ticket Management
-
-1. **Prioritization**
-   - Understanding urgency
-   - Response time goals
-   - Escalation procedures
-
-2. **Communication**
-   - Professional tone
-   - Clear explanations
-   - Follow-up protocols
-
-## Quality Assurance
-
-- Regular reviews
-- Customer feedback
-- Team training
-
-## Metrics & KPIs
-
-- Response time
-- Resolution rate
-- Customer satisfaction',
-    (SELECT id FROM public.kb_categories WHERE slug = 'best-practices'),
     'published',
-    '{"view_count": 110, "helpful_count": 42}'
-  );
+    'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
+    NOW(),
+    NOW(),
+    (SELECT id FROM public.kb_categories WHERE slug = 'best-practices'),
+    ARRAY['best-practices', 'support']
+);
 
 -- Seed tickets for testing
 INSERT INTO public.tickets (id, title, description, priority, status, created_by, customer_id, assigned_to, created_at, updated_at)
