@@ -46,7 +46,7 @@ export default function TicketsPage() {
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold tracking-tight">Tickets</h1>
             </div>
-            <TicketList tickets={tickets} />
+            <TicketList tickets={tickets} baseUrl="/admin/tickets" />
         </div>
     )
 } 

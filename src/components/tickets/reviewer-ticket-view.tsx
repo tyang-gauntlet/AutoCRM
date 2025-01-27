@@ -55,7 +55,7 @@ export function ReviewerTicketView({
         }
     }
 
-    const customerIdentifier = ticket.creator?.email || 'No email provided'
+    const customerIdentifier = ticket.customer?.email || 'No email provided'
     const customerInitial = customerIdentifier.charAt(0).toUpperCase()
 
     return (

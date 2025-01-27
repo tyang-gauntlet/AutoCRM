@@ -22,7 +22,6 @@ const ROLE_DASHBOARDS = {
 
 export async function middleware(req: NextRequest) {
     try {
-        console.log('🔒 Middleware processing path:', req.nextUrl.pathname)
         const res = NextResponse.next()
         const supabase = createMiddlewareClient<Database>({ req, res })
         const {
@@ -30,11 +29,8 @@ export async function middleware(req: NextRequest) {
             error: sessionError,
         } = await supabase.auth.getSession()
 
-        console.log('🔑 Session status:', session ? 'authenticated' : 'unauthenticated')
-
-        // Handle session errors
         if (sessionError) {
-            console.log('❌ Session error:', sessionError)
+            console.error('Auth error:', sessionError)
             const redirectUrl = new URL('/login', req.url)
             redirectUrl.searchParams.set('redirect', req.nextUrl.pathname)
             return NextResponse.redirect(redirectUrl)
@@ -47,68 +43,42 @@ export async function middleware(req: NextRequest) {
             req.nextUrl.pathname.startsWith('/user')
         const isLoginPage = req.nextUrl.pathname === '/login'
 
-        console.log('📍 Route type:', { isAuthRoute, isLoginPage })
-
         if (!session && isAuthRoute) {
-            // Redirect unauthenticated users to login
-            console.log('🚫 Unauthenticated user accessing protected route')
             const redirectUrl = new URL('/login', req.url)
             redirectUrl.searchParams.set('redirect', req.nextUrl.pathname)
-            const response = NextResponse.redirect(redirectUrl)
-            console.log('➡️ Redirecting to:', response.headers.get('location'))
-            return response
+            return NextResponse.redirect(redirectUrl)
         }
 
         if (session) {
-            // Get user's role
-            const { data: profile, error: profileError } = await supabase
+            const { data: profile } = await supabase
                 .from('profiles')
                 .select('role')
                 .eq('id', session.user.id)
                 .single()
 
-            console.log('👤 Profile data:', profile, 'Error:', profileError)
-
             const userRole = (profile?.role || 'user') as keyof typeof ROLE_DASHBOARDS
-            console.log('👑 User role:', userRole)
 
-            // Check role-based access for admin routes
-            if ((req.nextUrl.pathname.startsWith('/(auth)/admin') ||
-                req.nextUrl.pathname.startsWith('/admin')) &&
-                userRole !== 'admin') {
-                console.log('🚫 Non-admin accessing admin route')
-                const response = NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole], req.url))
-                console.log('➡️ Redirecting to:', response.headers.get('location'))
-                return response
+            // Check role-based access and redirect to appropriate dashboard
+            if (isLoginPage || req.nextUrl.pathname === '/dashboard') {
+                return NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole], req.url))
             }
 
-            // Check role-based access for reviewer routes
+            // Role-based route protection
+            if (req.nextUrl.pathname.startsWith('/admin') && userRole !== 'admin') {
+                return NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole], req.url))
+            }
+
             if (req.nextUrl.pathname.startsWith('/reviewer') && userRole !== 'reviewer') {
-                console.log('🚫 Non-reviewer accessing reviewer route')
-                const response = NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole], req.url))
-                console.log('➡️ Redirecting to:', response.headers.get('location'))
-                return response
-            }
-
-            // Redirect authenticated users away from login
-            if (isLoginPage) {
-                console.log('👤 Authenticated user accessing login page')
-                const response = NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole], req.url))
-                console.log('➡️ Redirecting to:', response.headers.get('location'))
-                return response
+                return NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole], req.url))
             }
         }
 
-        console.log('✅ Access granted')
         return res
     } catch (error) {
-        // Handle any unexpected errors by redirecting to login
-        console.error('❌ Middleware error:', error)
+        console.error('Middleware error:', error)
         const redirectUrl = new URL('/login', req.url)
         redirectUrl.searchParams.set('redirect', req.nextUrl.pathname)
-        const response = NextResponse.redirect(redirectUrl)
-        console.log('➡️ Error redirect to:', response.headers.get('location'))
-        return response
+        return NextResponse.redirect(redirectUrl)
     }
 }
 

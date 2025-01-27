@@ -212,7 +212,7 @@ export default function ReviewerDashboard() {
                                         <div className="flex items-center gap-2">
                                             <p className="font-medium truncate">{ticket.title}</p>
                                             {ticket.assigned_to && (
-                                                <AssignedIndicator name={ticket.assigned?.full_name || undefined} />
+                                                <AssignedIndicator name={ticket.assigned?.email || undefined} />
                                             )}
                                             <Badge className={priorityColors[ticket.priority as keyof typeof priorityColors]}>
                                                 {ticket.priority}
@@ -222,7 +222,7 @@ export default function ReviewerDashboard() {
                                             </Badge>
                                         </div>
                                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                            <span className="truncate">{ticket.creator?.email || 'Unknown'}</span>
+                                            <span className="truncate">{ticket.customer?.email || 'Unknown'}</span>
                                             <span>•</span>
                                             <span>{ticket.assigned_to ? 'Updated' : 'Created'} {new Date(ticket.updated_at || ticket.created_at).toLocaleDateString()}</span>
                                         </div>
