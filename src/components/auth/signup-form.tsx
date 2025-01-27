@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { useState } from 'react'
 import { useAuth } from '@/hooks/use-auth'
+import { useRouter } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -14,10 +15,19 @@ export function SignUpForm() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const { signUp, loading, error } = useAuth()
+    const router = useRouter()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        await signUp(email, password)
+        try {
+            const { error: signUpError } = await signUp(email, password)
+            if (!signUpError) {
+                // Redirect to login on successful signup
+                router.push('/login')
+            }
+        } catch (error) {
+            console.error('Signup error:', error)
+        }
     }
 
     return (
