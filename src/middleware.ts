@@ -13,6 +13,13 @@ const ROLE_ROUTES = {
     user: ['/user']
 }
 
+// Add role-specific dashboard paths
+const ROLE_DASHBOARDS = {
+    admin: '/admin/dashboard',
+    reviewer: '/reviewer/dashboard',
+    user: '/user/dashboard'
+} as const
+
 export async function middleware(req: NextRequest) {
     try {
         console.log('🔒 Middleware processing path:', req.nextUrl.pathname)
@@ -36,6 +43,7 @@ export async function middleware(req: NextRequest) {
         // Check if we're on an auth required route
         const isAuthRoute = req.nextUrl.pathname.startsWith('/(auth)') ||
             req.nextUrl.pathname.startsWith('/admin') ||
+            req.nextUrl.pathname.startsWith('/reviewer') ||
             req.nextUrl.pathname.startsWith('/user')
         const isLoginPage = req.nextUrl.pathname === '/login'
 
@@ -61,7 +69,7 @@ export async function middleware(req: NextRequest) {
 
             console.log('👤 Profile data:', profile, 'Error:', profileError)
 
-            const userRole = profile?.role || 'user'
+            const userRole = (profile?.role || 'user') as keyof typeof ROLE_DASHBOARDS
             console.log('👑 User role:', userRole)
 
             // Check role-based access for admin routes
@@ -69,7 +77,15 @@ export async function middleware(req: NextRequest) {
                 req.nextUrl.pathname.startsWith('/admin')) &&
                 userRole !== 'admin') {
                 console.log('🚫 Non-admin accessing admin route')
-                const response = NextResponse.redirect(new URL(`/${userRole}/dashboard`, req.url))
+                const response = NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole], req.url))
+                console.log('➡️ Redirecting to:', response.headers.get('location'))
+                return response
+            }
+
+            // Check role-based access for reviewer routes
+            if (req.nextUrl.pathname.startsWith('/reviewer') && userRole !== 'reviewer') {
+                console.log('🚫 Non-reviewer accessing reviewer route')
+                const response = NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole], req.url))
                 console.log('➡️ Redirecting to:', response.headers.get('location'))
                 return response
             }
@@ -77,7 +93,7 @@ export async function middleware(req: NextRequest) {
             // Redirect authenticated users away from login
             if (isLoginPage) {
                 console.log('👤 Authenticated user accessing login page')
-                const response = NextResponse.redirect(new URL(`/${userRole}/dashboard`, req.url))
+                const response = NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole], req.url))
                 console.log('➡️ Redirecting to:', response.headers.get('location'))
                 return response
             }
@@ -101,6 +117,7 @@ export const config = {
     matcher: [
         '/(auth)/:path*',
         '/admin/:path*',
+        '/reviewer/:path*',
         '/user/:path*',
         '/login',
     ],

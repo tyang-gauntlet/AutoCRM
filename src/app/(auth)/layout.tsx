@@ -27,7 +27,7 @@ export default function AuthLayout({
     return (
         <div className="min-h-screen bg-background" data-testid="layout">
             <Header />
-            <main className="mx-auto" role="main">
+            <main className="">
                 {children}
             </main>
         </div>
