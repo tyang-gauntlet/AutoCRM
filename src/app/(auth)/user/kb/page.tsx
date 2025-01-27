@@ -44,8 +44,8 @@ interface Article {
     metadata: any
     created_at: string
     updated_at: string
-    created_by: string | null
-    updated_by: string | null
+    created_by?: string | null
+    updated_by?: string | null
     search_rank?: number
     preview_html?: string
 }
@@ -54,83 +54,92 @@ export default function KnowledgeBasePage() {
     const searchParams = useSearchParams()
     const [categories, setCategories] = React.useState<Category[]>([])
     const [articles, setArticles] = React.useState<Article[]>([])
-    const [searchQuery, setSearchQuery] = React.useState(searchParams.get('q') || '')
+    const [searchQuery, setSearchQuery] = React.useState(searchParams?.get('q') ?? '')
     const [loading, setLoading] = React.useState(true)
     const [searching, setSearching] = React.useState(false)
     const debouncedQuery = useDebounce(searchQuery, 300)
 
     React.useEffect(() => {
-        const fetchData = async () => {
-            // Fetch categories
-            const { data: categoriesData } = await supabase
-                .from('kb_categories')
-                .select('*')
-                .order('name')
+        const fetchCategories = async () => {
+            try {
+                const { data } = await supabase
+                    .from('kb_categories')
+                    .select('*')
+                    .order('name')
 
-            if (categoriesData) setCategories(categoriesData)
-            setLoading(false)
+                if (data) {
+                    setCategories(data)
+                }
+            } catch (error) {
+                console.error('Error fetching categories:', error)
+            }
         }
 
-        fetchData()
+        fetchCategories()
     }, [])
 
+    // Function to generate preview HTML
+    const generatePreviewHtml = async (content: string) => {
+        try {
+            const firstParagraph = content.split('\n').find(p => p.trim().length > 0) || ''
+            const processedContent = await unified()
+                .use(remarkParse)
+                .use(remarkGfm)
+                .use(remarkRehype)
+                .use(rehypeStringify)
+                .process(firstParagraph)
+            return processedContent.toString()
+        } catch (error) {
+            console.error('Error generating preview:', error)
+            return ''
+        }
+    }
+
     React.useEffect(() => {
-        const searchArticles = async () => {
+        const fetchArticles = async () => {
             setSearching(true)
             try {
-                let articlesData: Partial<Article>[] = []
-
-                if (!debouncedQuery.trim()) {
-                    // If no search query, show featured articles
+                if (debouncedQuery) {
                     const { data } = await supabase
-                        .from('kb_articles')
-                        .select('*')
-                        .eq('status', 'published')
-                        .order('created_at', { ascending: false })
-                        .limit(4)
-                    articlesData = data || []
-                } else {
-                    // If there's a search query, use the search function
-                    const { data, error } = await supabase
                         .rpc('search_kb_articles', {
                             search_query: debouncedQuery,
                             limit_val: 10,
                             offset_val: 0
                         })
-
-                    if (error) throw error
-                    articlesData = data || []
+                    const articlesWithPreview = await Promise.all(
+                        (data || []).map(async (article: Partial<Article>) => ({
+                            ...article,
+                            status: article.status || null,
+                            category_id: article.category_id || null,
+                            metadata: article.metadata || {},
+                            preview_html: await generatePreviewHtml(article.content || '')
+                        } as Article))
+                    )
+                    setArticles(articlesWithPreview)
+                } else {
+                    const { data } = await supabase
+                        .from('kb_articles')
+                        .select('*')
+                        .eq('status', 'published')
+                        .order('created_at', { ascending: false })
+                        .limit(10)
+                    const articlesWithPreview = await Promise.all(
+                        (data || []).map(async (article) => ({
+                            ...article,
+                            preview_html: await generatePreviewHtml(article.content)
+                        }))
+                    )
+                    setArticles(articlesWithPreview)
                 }
-
-                // Process markdown previews
-                const processedArticles = await Promise.all(articlesData.map(async (article) => {
-                    const contentWithoutTitle = article.content?.replace(/^#\s+.*\n/, '') || ''
-                    const previewContent = contentWithoutTitle.split('\n').slice(0, 3).join('\n') // Take first 3 lines
-                    const processedContent = await unified()
-                        .use(remarkParse)
-                        .use(remarkGfm)
-                        .use(remarkRehype)
-                        .use(rehypeStringify)
-                        .process(previewContent)
-
-                    return {
-                        ...article,
-                        preview_html: processedContent.toString(),
-                        created_by: article.created_by || null,
-                        updated_by: article.updated_by || null
-                    } as Article
-                }))
-
-                setArticles(processedArticles)
             } catch (error) {
-                console.error('Error searching articles:', error)
-                setArticles([])
+                console.error('Error fetching articles:', error)
             } finally {
                 setSearching(false)
+                setLoading(false)
             }
         }
 
-        searchArticles()
+        fetchArticles()
     }, [debouncedQuery])
 
     const getHighlightedText = (text: string, query: string) => {

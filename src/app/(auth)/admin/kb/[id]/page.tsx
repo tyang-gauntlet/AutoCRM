@@ -22,6 +22,11 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { Check, ChevronsUpDown, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { unified } from 'unified'
+import remarkParse from 'remark-parse'
+import remarkGfm from 'remark-gfm'
+import remarkRehype from 'remark-rehype'
+import rehypeStringify from 'rehype-stringify'
 
 const AVAILABLE_TAGS = [
     'getting-started',
@@ -40,12 +45,31 @@ export default function ArticleEditorPage({ params }: { params: { id: string } }
     const [article, setArticle] = useState<KBArticle | null>(null)
     const [openTags, setOpenTags] = useState(false)
     const [selectedTags, setSelectedTags] = useState<string[]>([])
+    const [preview, setPreview] = useState('')
 
     useEffect(() => {
         if (params.id !== 'new') {
             loadArticle()
         }
     }, [params.id])
+
+    useEffect(() => {
+        updatePreview((article as any)?.content || '')
+    }, [(article as any)?.content])
+
+    const updatePreview = async (content: string) => {
+        try {
+            const result = await unified()
+                .use(remarkParse)
+                .use(remarkGfm)
+                .use(remarkRehype)
+                .use(rehypeStringify)
+                .process(content)
+            setPreview(result.toString())
+        } catch (error) {
+            console.error('Failed to generate preview:', error)
+        }
+    }
 
     const loadArticle = async () => {
         try {
@@ -79,19 +103,10 @@ export default function ArticleEditorPage({ params }: { params: { id: string } }
                 <div className="space-y-4">
                     <Input
                         placeholder="Title"
-                        value={article?.title || ''}
+                        value={(article as any)?.title || ''}
                         onChange={(e) => setArticle(prev => ({
                             ...prev!,
                             title: e.target.value
-                        }))}
-                    />
-
-                    <Input
-                        placeholder="URL"
-                        value={article?.source_url || ''}
-                        onChange={(e) => setArticle(prev => ({
-                            ...prev!,
-                            source_url: e.target.value
                         }))}
                     />
 
@@ -148,7 +163,7 @@ export default function ArticleEditorPage({ params }: { params: { id: string } }
 
                     <Textarea
                         placeholder="Content (Markdown)"
-                        value={article?.content || ''}
+                        value={(article as any)?.content || ''}
                         onChange={(e) => setArticle(prev => ({
                             ...prev!,
                             content: e.target.value
@@ -159,9 +174,29 @@ export default function ArticleEditorPage({ params }: { params: { id: string } }
 
                 <div className="border rounded-lg p-4">
                     <h3 className="text-lg font-semibold mb-4">Preview</h3>
-                    <div className="prose prose-sm max-w-none">
-                        {/* Add markdown preview here */}
-                    </div>
+                    <div
+                        className={cn(
+                            "prose dark:prose-invert max-w-none",
+                            // Headings
+                            "[&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mt-8 [&_h1]:mb-4",
+                            "[&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:mt-6 [&_h2]:mb-4",
+                            "[&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2",
+                            // Paragraphs and spacing
+                            "[&_p]:my-4 [&_p]:leading-7",
+                            // Lists
+                            "[&_ul]:!list-disc [&_ul]:!pl-6 [&_ul]:my-2",
+                            "[&_ol]:!list-decimal [&_ol]:!pl-6 [&_ol]:my-2",
+                            "[&_li]:my-0.5",
+                            // Code blocks
+                            "[&_pre]:!bg-muted/50 [&_pre]:!p-4 [&_pre]:!mt-6 [&_pre]:!mb-6 [&_pre]:!rounded-lg",
+                            "[&_pre_code]:!bg-transparent [&_pre_code]:!p-0",
+                            // Links
+                            "[&_a]:text-primary [&_a]:underline [&_a]:font-medium",
+                            // Strong and emphasis
+                            "[&_strong]:font-bold [&_em]:italic"
+                        )}
+                        dangerouslySetInnerHTML={{ __html: preview }}
+                    />
                 </div>
             </div>
         </div>

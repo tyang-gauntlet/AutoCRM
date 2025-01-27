@@ -70,7 +70,43 @@ module.exports = {
                 "accordion-down": "accordion-down 0.2s ease-out",
                 "accordion-up": "accordion-up 0.2s ease-out",
             },
+            typography: {
+                DEFAULT: {
+                    css: {
+                        maxWidth: 'none',
+                        color: 'hsl(var(--foreground))',
+                        h1: {
+                            color: 'hsl(var(--foreground))',
+                            fontSize: '1.75rem',
+                        },
+                        h2: {
+                            color: 'hsl(var(--foreground))',
+                            fontSize: '1.5rem',
+                        },
+                        h3: {
+                            color: 'hsl(var(--foreground))',
+                            fontSize: '1.25rem',
+                        },
+                        h4: {
+                            color: 'hsl(var(--foreground))',
+                            fontSize: '1.125rem',
+                        },
+                        p: {
+                            fontSize: '1rem',
+                        },
+                        code: {
+                            color: 'hsl(var(--foreground))',
+                        },
+                        'code::before': {
+                            content: '""',
+                        },
+                        'code::after': {
+                            content: '""',
+                        },
+                    }
+                }
+            }
         },
     },
-    plugins: [require("tailwindcss-animate")],
+    plugins: [require("tailwindcss-animate"), require('@tailwindcss/typography')],
 } 

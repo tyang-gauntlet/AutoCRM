@@ -15,6 +15,7 @@ import remarkParse from 'remark-parse'
 import remarkGfm from 'remark-gfm'
 import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
+import { cn } from '@/lib/utils'
 
 interface ArticleEditorProps {
     article?: KBArticle
@@ -24,10 +25,10 @@ interface ArticleEditorProps {
 
 export function ArticleEditor({ article, onSave, onCancel }: ArticleEditorProps) {
     const [formData, setFormData] = useState<CreateArticleRequest>({
-        title: article?.title || '',
-        content: article?.content || '',
-        category_id: article?.category_id || undefined,
-        source_type: article?.source_type || 'manual'
+        title: (article as any)?.title ?? '',
+        content: (article as any)?.content ?? '',
+        category_id: article?.category?.id,
+        source_type: 'manual'
     })
     const [preview, setPreview] = useState('')
     const [loading, setLoading] = useState(false)
@@ -111,7 +112,26 @@ export function ArticleEditor({ article, onSave, onCancel }: ArticleEditorProps)
                             Preview
                         </label>
                         <div
-                            className="prose prose-sm max-w-none p-4 border rounded-md bg-muted/50 min-h-[200px]"
+                            className={cn(
+                                "prose dark:prose-invert max-w-none p-4 border rounded-md bg-muted/50 min-h-[200px]",
+                                // Headings
+                                "[&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mt-8 [&_h1]:mb-4",
+                                "[&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:mt-6 [&_h2]:mb-4",
+                                "[&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2",
+                                // Paragraphs and spacing
+                                "[&_p]:my-4 [&_p]:leading-7",
+                                // Lists
+                                "[&_ul]:!list-disc [&_ul]:!pl-6 [&_ul]:my-2",
+                                "[&_ol]:!list-decimal [&_ol]:!pl-6 [&_ol]:my-2",
+                                "[&_li]:my-0.5",
+                                // Code blocks
+                                "[&_pre]:!bg-muted/50 [&_pre]:!p-4 [&_pre]:!mt-6 [&_pre]:!mb-6 [&_pre]:!rounded-lg",
+                                "[&_pre_code]:!bg-transparent [&_pre_code]:!p-0",
+                                // Links
+                                "[&_a]:text-primary [&_a]:underline [&_a]:font-medium",
+                                // Strong and emphasis
+                                "[&_strong]:font-bold [&_em]:italic"
+                            )}
                             dangerouslySetInnerHTML={{ __html: preview }}
                         />
                     </div>

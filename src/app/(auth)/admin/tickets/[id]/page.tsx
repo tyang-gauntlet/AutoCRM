@@ -43,8 +43,13 @@ const TICKET_STATUSES = [
     { value: 'resolved', label: 'Resolved' }
 ]
 
-export default function TicketDetails() {
-    const params = useParams()
+interface PageProps {
+    params: {
+        id: string
+    }
+}
+
+export default function TicketDetails({ params }: PageProps) {
     const [ticket, setTicket] = useState<Ticket | null>(null)
     const [loading, setLoading] = useState(true)
     const [users, setUsers] = useState<{ id: string, email: string }[]>([])

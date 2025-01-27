@@ -1,8 +1,13 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { OpenAIEmbeddings } from 'langchain/embeddings/openai'
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter'
+import { OpenAIEmbeddings } from "@langchain/openai"
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter"
+import { Document } from "langchain/document"
+
+interface ChunkDocument extends Document {
+    pageContent: string;
+}
 
 const embeddings = new OpenAIEmbeddings()
 const splitter = new RecursiveCharacterTextSplitter({
@@ -39,7 +44,7 @@ export async function POST(request: Request) {
         // Split content into chunks
         const chunks = await splitter.createDocuments([content])
         const chunkEmbeddings = await Promise.all(
-            chunks.map(async (chunk) => ({
+            chunks.map(async (chunk: ChunkDocument) => ({
                 content: chunk.pageContent,
                 embedding: await embeddings.embedQuery(chunk.pageContent)
             }))

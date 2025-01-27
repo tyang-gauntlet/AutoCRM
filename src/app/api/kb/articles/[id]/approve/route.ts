@@ -25,22 +25,33 @@ export async function POST(
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
+        // Fetch article to get current version and content
+        const { data: article, error: fetchError } = await supabase
+            .from('kb_articles')
+            .select('version, content')
+            .eq('id', params.id)
+            .single()
+
+        if (fetchError) {
+            return new Response(JSON.stringify({ error: 'Failed to fetch article' }), {
+                status: 500,
+            })
+        }
+
         // Update article status and store version
-        const { data: article, error: articleError } = await supabase
+        const { data, error: articleError } = await supabase
             .from('kb_articles')
             .update({
-                status: 'published',
                 approved_by: session.user.id,
                 approved_at: new Date().toISOString(),
-                version: supabase.sql`version + 1`
+                version: article.version + 1
             })
             .eq('id', params.id)
             .select()
-            .single()
 
         if (articleError) throw articleError
 
-        // Create version history
+        // Store version history
         const { error: versionError } = await supabase
             .from('kb_article_versions')
             .insert({
@@ -52,7 +63,7 @@ export async function POST(
 
         if (versionError) throw versionError
 
-        return NextResponse.json(article)
+        return NextResponse.json(data)
     } catch (error) {
         console.error('Error approving article:', error)
         return NextResponse.json(

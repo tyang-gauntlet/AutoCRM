@@ -29,16 +29,17 @@ export function ArticleList({ filter, onEdit, onDelete }: ArticleListProps) {
 
     useEffect(() => {
         loadArticles()
-    }, [filter, debouncedSearch])
+    }, [debouncedSearch, filter])
 
     const loadArticles = async () => {
         try {
             const data = await getArticles({
-                ...filter,
-                search: debouncedSearch || undefined
+                search: debouncedSearch || filter?.search,
+                status: filter?.status,
+                category: filter?.category
             })
             setArticles(data || [])
-        } catch (err) {
+        } catch (error) {
             toast({
                 title: 'Error',
                 description: 'Failed to load articles',
@@ -55,7 +56,7 @@ export function ArticleList({ filter, onEdit, onDelete }: ArticleListProps) {
                 description: 'Article deleted successfully'
             })
             loadArticles()
-        } catch (err) {
+        } catch (error) {
             toast({
                 title: 'Error',
                 description: 'Failed to delete article',
@@ -73,8 +74,8 @@ export function ArticleList({ filter, onEdit, onDelete }: ArticleListProps) {
     }
 
     return (
-        <div className="space-y-4">
-            <div className="flex gap-4">
+        <div className="space-y-6">
+            <div className="flex items-center gap-4">
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -84,18 +85,17 @@ export function ArticleList({ filter, onEdit, onDelete }: ArticleListProps) {
                         className="pl-10"
                     />
                 </div>
-                <Button variant="outline">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filter
+                <Button variant="outline" size="icon">
+                    <Filter className="h-4 w-4" />
                 </Button>
             </div>
 
             {loading ? (
-                <div className="flex justify-center p-8">
-                    <Loader2 className="h-8 w-8 animate-spin" />
+                <div className="flex justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin" />
                 </div>
             ) : (
-                <div className="grid gap-4">
+                <div className="space-y-4">
                     {articles.map((article) => (
                         <ArticlePreview
                             key={article.id}
@@ -104,6 +104,11 @@ export function ArticleList({ filter, onEdit, onDelete }: ArticleListProps) {
                             onDelete={() => handleDelete(article)}
                         />
                     ))}
+                    {articles.length === 0 && (
+                        <div className="text-center text-muted-foreground">
+                            No articles found
+                        </div>
+                    )}
                 </div>
             )}
         </div>

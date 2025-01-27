@@ -1,11 +1,17 @@
-import { useCallback, useState } from 'react'
+import { useState, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import type { KBArticle, KBCategory, CreateArticleRequest } from '@/types/kb'
+import type { CreateArticleRequest, UpdateArticleRequest, ArticleStatus } from '@/types/kb'
 
 export function useKB() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const supabase = createClientComponentClient()
+
+    const handleError = (err: unknown) => {
+        const message = err instanceof Error ? err.message : 'An unknown error occurred'
+        setError(message)
+        throw err
+    }
 
     const createArticle = useCallback(async (data: CreateArticleRequest) => {
         try {
@@ -24,8 +30,7 @@ export function useKB() {
 
             return await response.json()
         } catch (err) {
-            setError(err.message)
-            throw err
+            handleError(err)
         } finally {
             setLoading(false)
         }
@@ -46,8 +51,7 @@ export function useKB() {
 
             return await response.json()
         } catch (err) {
-            setError(err.message)
-            throw err
+            handleError(err)
         } finally {
             setLoading(false)
         }
@@ -65,56 +69,35 @@ export function useKB() {
 
             return await response.json()
         } catch (err) {
-            setError(err.message)
-            throw err
+            handleError(err)
         } finally {
             setLoading(false)
         }
     }, [])
 
-    const getArticles = useCallback(async (filter?: {
+    const getArticles = useCallback(async (params?: {
+        search?: string
         status?: ArticleStatus
         category?: string
-        search?: string
     }) => {
         try {
             setLoading(true)
             setError(null)
 
-            let query = supabase
+            const { data, error } = await supabase
                 .from('kb_articles')
                 .select(`
                     *,
                     category:kb_categories(id, name),
                     creator:profiles!kb_articles_created_by_fkey(id, full_name),
-                    approver:profiles!kb_articles_approved_by_fkey(id, full_name),
-                    tags
+                    approver:profiles!kb_articles_approved_by_fkey(id, full_name)
                 `)
                 .order('created_at', { ascending: false })
 
-            if (filter?.status) {
-                query = query.eq('status', filter.status)
-            }
-            if (filter?.category) {
-                query = query.eq('category_id', filter.category)
-            }
-            if (filter?.search) {
-                query = query.textSearch('search_vector', filter.search)
-            }
-
-            const { data, error: queryError } = await query
-
-            if (queryError) throw queryError
-            console.log('Articles data:', data)
-            return data?.map(article => ({
-                ...article,
-                created_by: article.creator,
-                approved_by: article.approver,
-                tags: article.tags || []
-            }))
+            if (error) throw error
+            return data
         } catch (err) {
-            setError(err.message)
-            throw err
+            handleError(err)
         } finally {
             setLoading(false)
         }
@@ -132,8 +115,7 @@ export function useKB() {
 
             if (error) throw error
         } catch (err) {
-            setError(err.message)
-            throw err
+            handleError(err)
         } finally {
             setLoading(false)
         }
@@ -156,8 +138,7 @@ export function useKB() {
             if (error) throw error
             return data
         } catch (err) {
-            setError(err.message)
-            throw err
+            handleError(err)
         } finally {
             setLoading(false)
         }
@@ -186,14 +167,13 @@ export function useKB() {
                 approved_by: data.approver
             }
         } catch (err) {
-            setError(err.message)
-            throw err
+            handleError(err)
         } finally {
             setLoading(false)
         }
     }, [supabase])
 
-    const updateArticle = useCallback(async (id: string, data: Partial<KBArticle>) => {
+    const updateArticle = useCallback(async (id: string, data: UpdateArticleRequest) => {
         try {
             setLoading(true)
             setError(null)
@@ -208,8 +188,7 @@ export function useKB() {
 
             if (error) throw error
         } catch (err) {
-            setError(err.message)
-            throw err
+            handleError(err)
         } finally {
             setLoading(false)
         }

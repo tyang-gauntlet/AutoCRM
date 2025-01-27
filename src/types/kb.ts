@@ -1,6 +1,8 @@
 import { Database } from './database'
 
-export interface KBArticle extends Database['public']['Tables']['kb_articles']['Row'] {
+type BaseKBArticle = Database['public']['Tables']['kb_articles']['Row']
+
+export type KBArticle = BaseKBArticle & {
     category?: {
         id: string
         name: string

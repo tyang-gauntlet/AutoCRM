@@ -1,5 +1,3 @@
-'use client'
-
 import React from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -15,6 +13,9 @@ import rehypePrettyCode from 'rehype-pretty-code'
 import rehypeStringify from 'rehype-stringify'
 import { createHighlighter } from 'shiki'
 import { cn } from '@/lib/utils'
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
+import { notFound } from 'next/navigation'
 
 interface Article {
     id: string
@@ -44,86 +45,48 @@ const rehypePrettyCodeOptions = {
     }
 } as const
 
-export default function ArticlePage() {
-    const params = useParams()
-    const [article, setArticle] = React.useState<Article | null>(null)
-    const [loading, setLoading] = React.useState(true)
-    const [error, setError] = React.useState<string | null>(null)
+interface PageProps {
+    params: {
+        slug: string
+    }
+}
+
+export default async function ArticlePage({ params }: PageProps) {
+    const supabase = createServerComponentClient({ cookies })
+
+    const { data: article } = await supabase
+        .from('kb_articles')
+        .select('*')
+        .eq('slug', params.slug)  // params.slug is now guaranteed to exist
+        .eq('status', 'published')
+        .single()
+
+    if (!article) {
+        notFound()
+    }
+
     const [htmlContent, setHtmlContent] = React.useState<string>('')
 
     React.useEffect(() => {
         const fetchArticle = async () => {
             try {
-                const { data, error } = await supabase
-                    .from('kb_articles')
-                    .select('*')
-                    .eq('slug', params.slug as string)
-                    .eq('status', 'published')
-                    .single()
+                const contentWithoutTitle = article.content.replace(/^#\s+.*\n/, '')
+                const processedContent = await unified()
+                    .use(remarkParse)
+                    .use(remarkGfm)
+                    .use(remarkRehype)
+                    .use(rehypePrettyCode, rehypePrettyCodeOptions)
+                    .use(rehypeStringify)
+                    .process(contentWithoutTitle)
 
-                if (error) {
-                    console.error('Error fetching article:', error)
-                    setError('Article not found')
-                } else {
-                    setArticle(data)
-                    if (data.content) {
-                        const contentWithoutTitle = data.content.replace(/^#\s+.*\n/, '')
-                        const processedContent = await unified()
-                            .use(remarkParse)
-                            .use(remarkGfm)
-                            .use(remarkRehype)
-                            .use(rehypePrettyCode, rehypePrettyCodeOptions)
-                            .use(rehypeStringify)
-                            .process(contentWithoutTitle)
-
-                        setHtmlContent(processedContent.toString())
-                    }
-                }
+                setHtmlContent(processedContent.toString())
             } catch (err) {
                 console.error('Error processing markdown:', err)
-                setError('Error processing article content')
-            } finally {
-                setLoading(false)
             }
         }
 
         fetchArticle()
-    }, [params.slug])
-
-    if (loading) {
-        return (
-            <div className="container mx-auto p-8">
-                <div className="animate-pulse space-y-4">
-                    <div className="h-8 bg-muted rounded w-3/4"></div>
-                    <div className="h-4 bg-muted rounded w-1/4"></div>
-                    <div className="space-y-2">
-                        <div className="h-4 bg-muted rounded"></div>
-                        <div className="h-4 bg-muted rounded"></div>
-                        <div className="h-4 bg-muted rounded w-5/6"></div>
-                    </div>
-                </div>
-            </div>
-        )
-    }
-
-    if (error || !article) {
-        return (
-            <div className="container mx-auto p-8">
-                <Card className="p-6 text-center">
-                    <h1 className="text-2xl font-bold mb-4">Article Not Found</h1>
-                    <p className="text-muted-foreground mb-4">
-                        The article you're looking for doesn't exist or has been moved.
-                    </p>
-                    <Button asChild>
-                        <Link href="/user/kb">
-                            <ChevronLeft className="mr-2 h-4 w-4" />
-                            Back to Knowledge Base
-                        </Link>
-                    </Button>
-                </Card>
-            </div>
-        )
-    }
+    }, [article.content])
 
     return (
         <main className="container mx-auto p-8">

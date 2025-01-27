@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { useParams } from 'next/navigation'
 import { useTicketDetails } from '@/hooks/use-ticket-details'
 import { UserTicketView } from '@/components/tickets/user-ticket-view'
@@ -10,8 +11,8 @@ import { useToast } from '@/hooks/use-toast'
 import type { Database } from '@/types/database'
 
 export default function UserTicketDetail() {
-    const params = useParams<{ id: string }>()
-    const { ticket, messages, loading, sendMessage } = useTicketDetails(params.id as string, 'user')
+    const { id } = useParams() as { id: string }
+    const { ticket, messages, loading, sendMessage } = useTicketDetails(id, 'user')
     const supabase = createClientComponentClient<Database>()
     const { toast } = useToast()
 

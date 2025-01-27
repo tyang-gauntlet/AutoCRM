@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,12 +14,9 @@ import { useTicketDetails } from '@/hooks/use-ticket-details'
 import { TicketDetail } from '@/components/tickets/ticket-detail'
 import type { TicketWithDetails } from '@/types/tickets'
 
-export default function ReviewerTicketDetail() {
-    const params = useParams<{ id: string }>()
-    const { ticket, messages, loading, sendMessage, updateStatus, assignToMe } = useTicketDetails(
-        params.id as string,
-        'reviewer'
-    )
+export default function ReviewerTicketPage() {
+    const { id } = useParams() as { id: string }
+    const { ticket, messages, loading, sendMessage, updateStatus, assignToMe } = useTicketDetails(id, 'reviewer')
 
     if (loading || !ticket) {
         return <div>Loading...</div>
