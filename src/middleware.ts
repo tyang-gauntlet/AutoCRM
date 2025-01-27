@@ -1,6 +1,7 @@
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import type { Database } from '@/types/database'
 
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = ['/login', '/signup', '/forgot-password', '/auth/callback', '/']
@@ -12,105 +13,95 @@ const ROLE_ROUTES = {
     user: ['/user']
 }
 
-export async function middleware(request: NextRequest) {
-    // Skip middleware for static files and api routes
-    if (request.nextUrl.pathname.startsWith('/_next') ||
-        request.nextUrl.pathname.startsWith('/api') ||
-        request.nextUrl.pathname.startsWith('/favicon.ico')) {
-        return NextResponse.next()
-    }
-
-    // Create a response early so we can modify headers
-    const res = NextResponse.next()
-    res.headers.set('Cache-Control', 's-maxage=1, stale-while-revalidate=59')
-
-    const { pathname } = request.nextUrl
-
-    // Check if the current route is public
-    const isPublicRoute = PUBLIC_ROUTES.some(route =>
-        pathname === route || pathname.startsWith('/auth/')
-    )
-
-    // Create middleware client using request/response
-    const supabase = createMiddlewareClient({ req: request, res })
-
+export async function middleware(req: NextRequest) {
     try {
-        // 1. Get session
-        const { data: { session }, error } = await supabase.auth.getSession()
+        console.log('🔒 Middleware processing path:', req.nextUrl.pathname)
+        const res = NextResponse.next()
+        const supabase = createMiddlewareClient<Database>({ req, res })
+        const {
+            data: { session },
+            error: sessionError,
+        } = await supabase.auth.getSession()
 
-        if (error) {
-            return redirectToLogin(request)
+        console.log('🔑 Session status:', session ? 'authenticated' : 'unauthenticated')
+
+        // Handle session errors
+        if (sessionError) {
+            console.log('❌ Session error:', sessionError)
+            const redirectUrl = new URL('/login', req.url)
+            redirectUrl.searchParams.set('redirect', req.nextUrl.pathname)
+            return NextResponse.redirect(redirectUrl)
         }
 
-        // 2. Handle login page redirects
-        if (request.nextUrl.pathname === '/login') {
-            if (!session) {
-                return res
-            }
+        // Check if we're on an auth required route
+        const isAuthRoute = req.nextUrl.pathname.startsWith('/(auth)') ||
+            req.nextUrl.pathname.startsWith('/admin') ||
+            req.nextUrl.pathname.startsWith('/user')
+        const isLoginPage = req.nextUrl.pathname === '/login'
 
-            // Simple role check - one DB query
-            const { data } = await supabase
+        console.log('📍 Route type:', { isAuthRoute, isLoginPage })
+
+        if (!session && isAuthRoute) {
+            // Redirect unauthenticated users to login
+            console.log('🚫 Unauthenticated user accessing protected route')
+            const redirectUrl = new URL('/login', req.url)
+            redirectUrl.searchParams.set('redirect', req.nextUrl.pathname)
+            const response = NextResponse.redirect(redirectUrl)
+            console.log('➡️ Redirecting to:', response.headers.get('location'))
+            return response
+        }
+
+        if (session) {
+            // Get user's role
+            const { data: profile, error: profileError } = await supabase
                 .from('profiles')
                 .select('role')
                 .eq('id', session.user.id)
                 .single()
 
-            // Direct routing based on role
-            return NextResponse.redirect(
-                new URL(
-                    `/${data?.role || 'user'}/dashboard`,
-                    request.url
-                )
-            )
-        }
+            console.log('👤 Profile data:', profile, 'Error:', profileError)
 
-        // 3. Handle protected routes
-        if (request.nextUrl.pathname.startsWith('/admin') ||
-            request.nextUrl.pathname.startsWith('/user')) {
-            if (!session) {
-                return redirectToLogin(request)
+            const userRole = profile?.role || 'user'
+            console.log('👑 User role:', userRole)
+
+            // Check role-based access for admin routes
+            if ((req.nextUrl.pathname.startsWith('/(auth)/admin') ||
+                req.nextUrl.pathname.startsWith('/admin')) &&
+                userRole !== 'admin') {
+                console.log('🚫 Non-admin accessing admin route')
+                const response = NextResponse.redirect(new URL(`/${userRole}/dashboard`, req.url))
+                console.log('➡️ Redirecting to:', response.headers.get('location'))
+                return response
             }
 
-            // Check role access for protected routes
-            const { data } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', session.user.id)
-                .single()
-
-            const userRole = data?.role || 'user'
-            const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
-
-            // Redirect users trying to access admin routes
-            if (isAdminRoute && userRole !== 'admin') {
-                return NextResponse.redirect(
-                    new URL(`/${userRole}/dashboard`, request.url)
-                )
+            // Redirect authenticated users away from login
+            if (isLoginPage) {
+                console.log('👤 Authenticated user accessing login page')
+                const response = NextResponse.redirect(new URL(`/${userRole}/dashboard`, req.url))
+                console.log('➡️ Redirecting to:', response.headers.get('location'))
+                return response
             }
         }
 
+        console.log('✅ Access granted')
         return res
     } catch (error) {
-        console.error('Middleware error:', error)
-        return redirectToLogin(request)
+        // Handle any unexpected errors by redirecting to login
+        console.error('❌ Middleware error:', error)
+        const redirectUrl = new URL('/login', req.url)
+        redirectUrl.searchParams.set('redirect', req.nextUrl.pathname)
+        const response = NextResponse.redirect(redirectUrl)
+        console.log('➡️ Error redirect to:', response.headers.get('location'))
+        return response
     }
 }
 
-function redirectToLogin(request: NextRequest) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('redirect', request.nextUrl.pathname)
-    return NextResponse.redirect(loginUrl)
-}
-
+// Specify which routes should trigger this middleware
 export const config = {
     matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - api (API routes)
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         */
-        '/((?!api|_next/static|_next/image|favicon.ico).*)',
+        '/(auth)/:path*',
+        '/admin/:path*',
+        '/user/:path*',
+        '/login',
     ],
 }

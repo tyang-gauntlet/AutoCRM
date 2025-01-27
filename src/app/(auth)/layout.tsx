@@ -13,19 +13,21 @@ export default function AuthLayout({
     // Only show loading state, but still render layout
     if (loading) {
         return (
-            <div className="min-h-screen bg-background">
+            <div className="min-h-screen bg-background" data-testid="layout">
                 <Header />
                 <div className="flex items-center justify-center h-screen">
-                    Loading...
+                    <div role="status" aria-label="Loading">
+                        Loading...
+                    </div>
                 </div>
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-background" data-testid="layout">
             <Header />
-            <main className="container mx-auto py-6">
+            <main className="mx-auto" role="main">
                 {children}
             </main>
         </div>

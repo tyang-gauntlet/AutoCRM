@@ -9,7 +9,7 @@
     "lint": "next lint",
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "vitest run",
-    "test:e2e": "playwright test",
+    "test:e2e": "cross-env NODE_ENV=test playwright test",
     "test:e2e:ui": "playwright test --ui",
     "coverage": "vitest run --coverage",
     "test:watch": "vitest watch"
@@ -83,6 +83,7 @@
     "@typescript-eslint/eslint-plugin": "^8.21.0",
     "@typescript-eslint/parser": "^8.21.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "cross-env": "^7.0.3",
     "dotenv": "^16.4.7",
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
