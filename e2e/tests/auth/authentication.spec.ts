@@ -39,7 +39,7 @@ extendedTest.describe('Authentication Flow', () => {
 
     extendedTest('should redirect to login when accessing protected route', async ({ page }) => {
         await page.goto('/user/dashboard')
-        await expect(page).toHaveURL('/login?redirect=%2Fuser%2Fdashboard')
+        await expect(page).toHaveURL('/login')
     })
 
     extendedTest('should handle signup validation', async ({ page }) => {
@@ -84,7 +84,7 @@ extendedTest.describe('Authentication Flow', () => {
         ])
 
         await expect(page).toHaveURL(/.*dashboard/)
-        await expect(page.locator('[data-testid="user-menu"]')).toBeVisible({ timeout: 30000 })
+        await expect(page.locator('[data-testid="logout-button"]')).toBeVisible({ timeout: 30000 })
     })
 
     extendedTest('should allow login and profile creation', async ({ page }) => {
@@ -102,11 +102,8 @@ extendedTest.describe('Authentication Flow', () => {
         await expect(page).toHaveURL(/.*dashboard/, { timeout: 30000 })
         await page.waitForLoadState('networkidle')
 
-        const userMenu = page.locator('[data-testid="user-menu"]')
-        await expect(userMenu).toBeVisible({ timeout: 30000 })
-
-        await userMenu.click()
-        await expect(page.locator('[data-testid="logout-button"]')).toBeVisible()
+        const logoutButton = page.locator('[data-testid="logout-button"]')
+        await expect(logoutButton).toBeVisible({ timeout: 30000 })
     })
 })
 

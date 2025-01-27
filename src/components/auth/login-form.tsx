@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { useState } from 'react'
 import { useAuth } from '@/hooks/use-auth'
+import { useRole } from '@/hooks/use-role'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -12,33 +13,29 @@ import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-export function LoginForm({ redirectTo }: { redirectTo?: string | null }) {
-    const { signIn } = useAuth()
+const ROLE_DASHBOARDS = {
+    admin: '/admin/dashboard',
+    reviewer: '/reviewer/dashboard',
+    user: '/user/dashboard'
+} as const
+
+export function LoginForm() {
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
+    const { signIn, loading, error } = useAuth()
+    const { role } = useRole()
     const router = useRouter()
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
 
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (loading) return
-
-        const formData = new FormData(e.currentTarget)
-        const email = formData.get('email') as string
-        const password = formData.get('password') as string
-
-        setLoading(true)
-        setError(null)
-
         try {
             await signIn(email, password)
-            // Add a small delay before navigation
-            await new Promise(resolve => setTimeout(resolve, 500))
-            router.push(redirectTo || '/dashboard')
+
+            // Get the appropriate dashboard based on role
+            const dashboard = ROLE_DASHBOARDS[role as keyof typeof ROLE_DASHBOARDS] || '/user/dashboard'
+            router.push(dashboard)
         } catch (error) {
             console.error('Login error:', error)
-            setError('Invalid login credentials')
-        } finally {
-            setLoading(false)
         }
     }
 
@@ -58,6 +55,8 @@ export function LoginForm({ redirectTo }: { redirectTo?: string | null }) {
                             autoCapitalize="none"
                             autoComplete="email"
                             autoCorrect="off"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             disabled={loading}
                             required
                         />
@@ -71,6 +70,8 @@ export function LoginForm({ redirectTo }: { redirectTo?: string | null }) {
                             data-testid="password"
                             aria-label="Password"
                             autoComplete="current-password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             disabled={loading}
                             required
                         />

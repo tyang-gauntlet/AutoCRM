@@ -68,16 +68,16 @@ export function useAuth(): AuthState & AuthActions {
     }
 
     const signOut = async () => {
-        setLoading(true)
         try {
             const { error } = await supabase.auth.signOut()
             if (error) throw error
+
+            // Force a router refresh and redirect to login
             router.refresh()
+            router.push('/login')
         } catch (error) {
-            setError(error instanceof Error ? error.message : 'Failed to sign out')
+            console.error('Error signing out:', error)
             throw error
-        } finally {
-            setLoading(false)
         }
     }
 

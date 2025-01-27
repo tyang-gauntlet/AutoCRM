@@ -30,9 +30,7 @@ export async function middleware(req: NextRequest) {
         } = await supabase.auth.getSession()
 
         if (sessionError) {
-            console.error('Auth error:', sessionError)
             const redirectUrl = new URL('/login', req.url)
-            redirectUrl.searchParams.set('redirect', req.nextUrl.pathname)
             return NextResponse.redirect(redirectUrl)
         }
 
@@ -45,7 +43,6 @@ export async function middleware(req: NextRequest) {
 
         if (!session && isAuthRoute) {
             const redirectUrl = new URL('/login', req.url)
-            redirectUrl.searchParams.set('redirect', req.nextUrl.pathname)
             return NextResponse.redirect(redirectUrl)
         }
 
@@ -58,7 +55,7 @@ export async function middleware(req: NextRequest) {
 
             const userRole = (profile?.role || 'user') as keyof typeof ROLE_DASHBOARDS
 
-            // Check role-based access and redirect to appropriate dashboard
+            // Redirect from login or generic dashboard to role-specific dashboard
             if (isLoginPage || req.nextUrl.pathname === '/dashboard') {
                 return NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole], req.url))
             }
@@ -77,7 +74,6 @@ export async function middleware(req: NextRequest) {
     } catch (error) {
         console.error('Middleware error:', error)
         const redirectUrl = new URL('/login', req.url)
-        redirectUrl.searchParams.set('redirect', req.nextUrl.pathname)
         return NextResponse.redirect(redirectUrl)
     }
 }
