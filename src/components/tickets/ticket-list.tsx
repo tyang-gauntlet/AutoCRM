@@ -18,7 +18,7 @@ interface TicketListProps {
 
 export function TicketList({ tickets, baseUrl, isReviewer }: TicketListProps) {
     return (
-        <div className="space-y-4">
+        <div className="w-[400px] flex flex-col border-r">
             {tickets.map((ticket) => (
                 <Card key={ticket.id} className="p-4 hover:bg-muted/50 transition-colors">
                     <TicketListItem

@@ -1,6 +1,6 @@
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = ['/login', '/signup', '/forgot-password', '/auth/callback', '/']
@@ -21,8 +21,8 @@ export async function middleware(request: NextRequest) {
     }
 
     // Create a response early so we can modify headers
-    const response = NextResponse.next()
-    response.headers.set('Cache-Control', 's-maxage=1, stale-while-revalidate=59')
+    const res = NextResponse.next()
+    res.headers.set('Cache-Control', 's-maxage=1, stale-while-revalidate=59')
 
     const { pathname } = request.nextUrl
 
@@ -32,80 +32,85 @@ export async function middleware(request: NextRequest) {
     )
 
     // Create middleware client using request/response
-    const supabase = createMiddlewareClient({ req: request, res: response })
+    const supabase = createMiddlewareClient({ req: request, res })
 
     try {
-        // Get session with caching
+        // 1. Get session
         const { data: { session }, error } = await supabase.auth.getSession()
 
-        // If there's no session and trying to access protected routes
-        if (!session && !isPublicRoute) {
+        if (error) {
             return redirectToLogin(request)
         }
 
-        // If there's no session but we're on a public route, allow it
-        if (!session && isPublicRoute) {
-            return response
-        }
+        // 2. Handle login page redirects
+        if (request.nextUrl.pathname === '/login') {
+            if (!session) {
+                return res
+            }
 
-        // If we have a session but trying to access public routes (except home)
-        if (session && isPublicRoute && pathname !== '/') {
-            // Get user role from profiles with caching
-            const { data: profile } = await supabase
+            // Simple role check - one DB query
+            const { data } = await supabase
                 .from('profiles')
                 .select('role')
                 .eq('id', session.user.id)
                 .single()
 
-            const userRole = profile?.role || 'user'
-            return redirectToDashboard(request, userRole)
+            // Direct routing based on role
+            return NextResponse.redirect(
+                new URL(
+                    `/${data?.role || 'user'}/dashboard`,
+                    request.url
+                )
+            )
         }
 
-        // Check role-based access for authenticated users
-        if (session) {
-            const { data: profile } = await supabase
+        // 3. Handle protected routes
+        if (request.nextUrl.pathname.startsWith('/admin') ||
+            request.nextUrl.pathname.startsWith('/user')) {
+            if (!session) {
+                return redirectToLogin(request)
+            }
+
+            // Check role access for protected routes
+            const { data } = await supabase
                 .from('profiles')
                 .select('role')
                 .eq('id', session.user.id)
                 .single()
 
-            const userRole = profile?.role || 'user'
-            const allowedPaths = ROLE_ROUTES[userRole as keyof typeof ROLE_ROUTES]
+            const userRole = data?.role || 'user'
+            const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
 
-            // Check if the current path starts with any of the allowed paths
-            const hasAccess = allowedPaths.some(path => pathname.startsWith(path))
-
-            if (!hasAccess && !isPublicRoute) {
-                return redirectToDashboard(request, userRole)
+            // Redirect users trying to access admin routes
+            if (isAdminRoute && userRole !== 'admin') {
+                return NextResponse.redirect(
+                    new URL(`/${userRole}/dashboard`, request.url)
+                )
             }
         }
 
-        return response
+        return res
     } catch (error) {
-        console.error('[Middleware] Unexpected error:', error)
-        return isPublicRoute ? response : redirectToLogin(request)
+        console.error('Middleware error:', error)
+        return redirectToLogin(request)
     }
 }
 
 function redirectToLogin(request: NextRequest) {
-    return NextResponse.redirect(new URL('/login', request.url))
-}
-
-function redirectToDashboard(request: NextRequest, role: string) {
-    let redirectUrl: string
-    switch (role) {
-        case 'admin':
-            redirectUrl = '/admin/dashboard'
-            break
-        case 'reviewer':
-            redirectUrl = '/reviewer/dashboard'
-            break
-        default:
-            redirectUrl = '/user/dashboard'
-    }
-    return NextResponse.redirect(new URL(redirectUrl, request.url))
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('redirect', request.nextUrl.pathname)
+    return NextResponse.redirect(loginUrl)
 }
 
 export const config = {
-    matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+    matcher: [
+        /*
+         * Match all request paths except for the ones starting with:
+         * - api (API routes)
+         * - _next/static (static files)
+         * - _next/image (image optimization files)
+         * - favicon.ico (favicon file)
+         */
+        '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    ],
 }

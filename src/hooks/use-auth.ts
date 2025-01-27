@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
 import { Session, User, AuthChangeEvent } from '@supabase/supabase-js'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
+import { useAuthContext } from '@/contexts/auth-context'
 import type { Database } from '@/types/database'
-import { PUBLIC_ROUTES } from '@/constants/auth'
 import type { AuthState, AuthActions } from '@/types/auth'
 
 type SignUpResponse = {
@@ -14,17 +14,16 @@ type SignUpResponse = {
 }
 
 export function useAuth(): AuthState & AuthActions {
-    const [user, setUser] = useState<User | null>(null)
-    const [loading, setLoading] = useState(true)
+    const { user, session, loading: authLoading } = useAuthContext()
+    const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
     const supabase = createClientComponentClient<Database>()
-    const [session, setSession] = useState<Session | null>(null)
-    const sessionCache = useRef<{ [key: string]: Session }>({})
+    const redirecting = useRef(false)
+    const pathname = usePathname()
 
     const handleAuthStateChange = useCallback(async (event: AuthChangeEvent, session: Session | null) => {
         if (event === 'SIGNED_OUT') {
-            setUser(null)
             setError(null)
             // Clear client-side data
             localStorage.clear()
@@ -33,53 +32,43 @@ export function useAuth(): AuthState & AuthActions {
                     .replace(/^ +/, "")
                     .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/")
             })
-            // Only refresh if not already on a public route
-            const isPublicRoute = PUBLIC_ROUTES.includes(window.location.pathname as typeof PUBLIC_ROUTES[number])
-            if (!isPublicRoute) {
-                router.refresh()
+            if (!redirecting.current) {
+                redirecting.current = true
+                router.push('/login')
             }
         } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            setUser(session?.user ?? null)
+            if (!session?.user?.id) return
+
             setError(null)
-            router.refresh()
-        }
-        setLoading(false)
-    }, [router])
 
-    const getSession = useCallback(async () => {
-        const cachedSession = sessionCache.current['current']
-        if (cachedSession) {
-            return cachedSession
-        }
+            if (!redirecting.current) {
+                redirecting.current = true
+                try {
+                    // Get user role from profile
+                    const { data: profile, error: profileError } = await supabase
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', session.user.id)
+                        .single()
 
-        const response = await fetch('/api/auth/session')
-        const data = await response.json()
+                    if (profileError) throw profileError
 
-        sessionCache.current['current'] = data
-        setSession(data)
-        return data
-    }, [])
-
-    useEffect(() => {
-        const checkSession = async () => {
-            try {
-                const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-                if (sessionError) throw sessionError
-                setUser(session?.user ?? null)
-                setLoading(false)
-            } catch (error) {
-                console.error('[useAuth] Error checking session:', error)
-                setUser(null)
-                setError(error instanceof Error ? error.message : 'Failed to check session')
-                setLoading(false)
+                    // Redirect based on role
+                    const role = profile?.role || 'user'
+                    router.push(`/${role}/dashboard`)
+                } catch (error) {
+                    console.error('Error fetching user role:', error)
+                    // Fallback to user dashboard on error
+                    router.push('/user/dashboard')
+                }
             }
         }
+        setLoading(false)
+    }, [router, supabase])
 
-        checkSession()
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange)
-        return () => subscription.unsubscribe()
-    }, [handleAuthStateChange, supabase.auth])
+    useEffect(() => {
+        redirecting.current = false
+    }, [pathname])
 
     const signOut = useCallback(async () => {
         try {
@@ -89,19 +78,13 @@ export function useAuth(): AuthState & AuthActions {
 
             // Clear client-side data
             localStorage.clear()
-
-            // Clear cookies
             document.cookie.split(";").forEach((c) => {
                 document.cookie = c
                     .replace(/^ +/, "")
                     .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/;domain=localhost")
             })
 
-            // Navigate to login if not on public route
-            const isPublicRoute = PUBLIC_ROUTES.includes(window.location.pathname as typeof PUBLIC_ROUTES[number])
-            if (!isPublicRoute) {
-                router.push('/login')
-            }
+            router.push('/login')
         } catch (error) {
             console.error('[useAuth] Error signing out:', error)
             setError('Failed to sign out')
@@ -114,17 +97,30 @@ export function useAuth(): AuthState & AuthActions {
     const signUp = async (email: string, password: string): Promise<SignUpResponse> => {
         try {
             setLoading(true)
-
             const { data, error } = await supabase.auth.signUp({
                 email,
                 password,
                 options: {
                     emailRedirectTo: `${window.location.origin}/auth/callback`,
-                    data: { role: 'user' }
+                    data: {}
                 }
             })
 
             if (error) throw error
+
+            if (data.user) {
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .insert([{
+                        id: data.user.id,
+                        email: data.user.email,
+                        role: 'user',
+                        status: 'active'
+                    }])
+
+                if (profileError) throw profileError
+            }
+
             return { data, error: null }
         } catch (error) {
             console.error('Signup error:', error)
@@ -134,22 +130,40 @@ export function useAuth(): AuthState & AuthActions {
         }
     }
 
+    const signIn = async (email: string, password: string) => {
+        setLoading(true)
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            })
+            if (error) throw error
+
+            // Handle redirect after successful sign in
+            if (data.session) {
+                // Get user role
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', data.session.user.id)
+                    .single()
+
+                const role = profile?.role || 'user'
+                router.push(`/${role}/dashboard`)
+            }
+        } catch (error) {
+            throw error
+        } finally {
+            setLoading(false)
+        }
+    }
+
     return {
         user,
-        loading,
+        loading: loading || authLoading,
         error,
-        signIn: async (email: string, password: string) => {
-            try {
-                const { error: signInError } = await supabase.auth.signInWithPassword({
-                    email,
-                    password,
-                })
-                if (signInError) throw signInError
-            } catch (error) {
-                setError(error instanceof Error ? error.message : 'Failed to sign in')
-                throw error
-            }
-        },
+        session,
+        signIn,
         signOut,
         signUp
     }

@@ -1,39 +1,66 @@
-import { render } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { Header } from '../header'
 import { vi } from 'vitest'
-import { useAuth } from '@/hooks/use-auth'
-import { useRole } from '@/hooks/use-role'
+import { act } from '@testing-library/react'
+import { useAuthContext } from '@/contexts/auth-context'
 
-// Mock the hooks
-vi.mock('@/hooks/use-auth', () => ({
-    useAuth: () => ({
-        user: { id: 'test-user', email: 'test@example.com' },
+// Mock auth context
+vi.mock('@/contexts/auth-context', () => ({
+    useAuthContext: vi.fn(() => ({
+        user: { email: 'test@example.com' },
+        session: { user: { email: 'test@example.com' } },
         loading: false,
-        error: null,
-        signOut: vi.fn()
+        initialized: true,
+    }))
+}))
+
+// Mock useRole hook
+vi.mock('@/hooks/use-role', () => ({
+    useRole: () => ({
+        role: 'user',
+        loading: false,
+        isAdmin: false,
+        isUser: true
     })
 }))
 
-vi.mock('@/hooks/use-role', () => ({
-    useRole: () => ({
-        role: 'admin',
-        isAdmin: true,
+// Mock useAuth hook
+const mockSignOut = vi.fn()
+vi.mock('@/hooks/use-auth', () => ({
+    useAuth: () => ({
+        signOut: mockSignOut,
         loading: false
     })
 }))
 
 describe('Header', () => {
-    it('should show correct role badge', () => {
-        const { getByText } = render(<Header />)
-        expect(getByText('Admin')).toBeInTheDocument()
+    beforeEach(() => {
+        vi.clearAllMocks()
     })
 
-    it('should handle sign out errors gracefully', async () => {
-        // Mock sign out error
-        // Verify error handling UI
+    it('should show correct user info', () => {
+        render(<Header />)
+        expect(screen.getByText('test@example.com')).toBeInTheDocument()
+        expect(screen.getByText('User')).toBeInTheDocument()
     })
 
-    it('should disable buttons during loading states', () => {
-        // Verify button states during loading
+    it('should handle sign out', async () => {
+        render(<Header />)
+        const signOutButton = screen.getByLabelText('Sign out')
+        await act(async () => {
+            await fireEvent.click(signOutButton)
+        })
+        expect(mockSignOut).toHaveBeenCalled()
+    })
+
+    it('should show loading spinner during loading states', () => {
+        vi.mocked(useAuthContext).mockReturnValueOnce({
+            user: null,
+            session: null,
+            loading: true,
+            initialized: false
+        })
+        render(<Header />)
+        expect(screen.getByRole('status')).toBeInTheDocument()
     })
 }) 

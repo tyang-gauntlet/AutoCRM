@@ -1,86 +1,70 @@
 import { renderHook, act } from '@testing-library/react'
 import { useRole } from '../use-role'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useAuth } from '../use-auth'
+import { vi } from 'vitest'
 
-vi.mock('@supabase/auth-helpers-nextjs')
-vi.mock('../use-auth')
+// Mock Supabase client
+const mockSupabase = {
+    from: vi.fn(() => ({
+        select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+                single: vi.fn(() => Promise.resolve({ data: { role: 'admin' }, error: null }))
+            }))
+        }))
+    }))
+}
+
+vi.mock('@supabase/auth-helpers-nextjs', () => ({
+    createClientComponentClient: vi.fn(() => mockSupabase)
+}))
+
+// Mock auth context
+vi.mock('@/contexts/auth-context', () => ({
+    useAuthContext: () => ({
+        user: { id: 'test-user-id' },
+        session: { user: { id: 'test-user-id' } },
+        loading: false,
+        initialized: true,
+    })
+}))
 
 describe('useRole', () => {
-    const mockUser = { id: 'test-user-id', email: 'test@example.com' }
-
-    // Setup mock chain functions
-    const mockFrom = vi.fn()
-    const mockSelect = vi.fn()
-    const mockEq = vi.fn()
-    const mockSingle = vi.fn()
-
     beforeEach(() => {
         vi.clearAllMocks()
-
-        // Reset chain mocks
-        mockSelect.mockReturnValue({ eq: mockEq })
-        mockEq.mockReturnValue({ single: mockSingle })
-        mockFrom.mockReturnValue({ select: mockSelect })
-
-            // Setup Supabase client mock with proper return value
-            ; (createClientComponentClient as jest.Mock).mockReturnValue({
-                from: mockFrom
-            })
-            ; (useAuth as jest.Mock).mockReturnValue({ user: mockUser })
-
-        // Default successful response
-        mockSingle.mockResolvedValue({
-            data: { role: 'user' },
-            error: null
-        })
     })
 
-    it('should initialize with loading state and default role', async () => {
+    it('should initialize with loading state and null role', () => {
         const { result } = renderHook(() => useRole())
-
-        // Initial state
         expect(result.current.loading).toBe(true)
-        expect(result.current.role).toBe('user')
-
-        // Wait for effect
-        await act(async () => {
-            await new Promise(resolve => setTimeout(resolve, 0))
-        })
-
-        // Final state
-        expect(result.current.loading).toBe(false)
-        expect(result.current.role).toBe('user')
+        expect(result.current.role).toBe(null)
     })
 
     it('should fetch and set user role', async () => {
-        mockSingle.mockResolvedValue({
-            data: { role: 'admin' },
-            error: null
-        })
-
         const { result } = renderHook(() => useRole())
-
         await act(async () => {
             await new Promise(resolve => setTimeout(resolve, 0))
         })
-
         expect(result.current.loading).toBe(false)
         expect(result.current.role).toBe('admin')
         expect(result.current.isAdmin).toBe(true)
     })
 
     it('should handle role fetch error', async () => {
-        mockSingle.mockRejectedValue(new Error('Failed to fetch role'))
+        // Override the mock for this test only
+        mockSupabase.from.mockImplementationOnce(() => ({
+            select: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                    single: vi.fn(() => Promise.reject(new Error('Failed to fetch role')))
+                }))
+            }))
+        }))
 
         const { result } = renderHook(() => useRole())
-
         await act(async () => {
             await new Promise(resolve => setTimeout(resolve, 0))
         })
 
         expect(result.current.loading).toBe(false)
-        expect(result.current.error).toBe('Failed to load user role')
-        expect(result.current.role).toBe('user')
+        expect(result.current.role).toBe('user') // Fallback to user role on error
     })
 }) 

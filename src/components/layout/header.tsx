@@ -8,20 +8,20 @@ import { LogOut, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { ROLE_REDIRECTS } from '@/constants/auth'
-import { memo } from 'react'
+import { useAuthContext } from '@/contexts/auth-context'
 
-export const Header = memo(function Header() {
-    const { user, signOut, loading: authLoading, session } = useAuth()
-    const { role, loading: roleLoading, error } = useRole()
+export function Header() {
+    const { user, loading: authLoading } = useAuthContext()
+    const { role } = useRole()
+    const { signOut } = useAuth()
     const router = useRouter()
     const [isSigningOut, setIsSigningOut] = useState(false)
 
     // Memoize expensive computations
     const userInfo = useMemo(() => ({
-        name: session?.user?.name,
-        email: session?.user?.email
-    }), [session?.user])
+        email: user?.email,
+        role: role || 'user'
+    }), [user, role])
 
     const handleSignOut = async (e: React.MouseEvent) => {
         e.preventDefault()
@@ -38,12 +38,12 @@ export const Header = memo(function Header() {
         }
     }
 
-    if (authLoading || roleLoading) {
+    if (authLoading) {
         return (
             <header>
                 <nav className="border-b">
                     <div className="flex h-16 items-center px-4">
-                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <Loader2 className="h-5 w-5 animate-spin" role="status" aria-label="Loading" />
                     </div>
                 </nav>
             </header>
@@ -52,22 +52,21 @@ export const Header = memo(function Header() {
 
     if (!user) return null
 
+    const displayRole = userInfo.role.charAt(0).toUpperCase() + userInfo.role.slice(1)
+
     return (
         <header>
             <nav className="border-b">
                 <div className="flex h-16 items-center px-4">
-                    <Link href={ROLE_REDIRECTS[role]}>
+                    <Link href={`/${role}/dashboard`}>
                         <h1 className="text-xl font-bold">AutoCRM</h1>
                     </Link>
 
                     <div className="ml-auto flex items-center space-x-4">
-                        {error && (
-                            <span className="text-sm text-destructive">{error}</span>
-                        )}
                         <div className="text-sm text-muted-foreground mr-4">
                             <span className="font-medium text-foreground">{userInfo.email}</span>
                             <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-                                {role.charAt(0).toUpperCase() + role.slice(1)}
+                                {displayRole}
                             </span>
                         </div>
                         <Button
@@ -88,4 +87,4 @@ export const Header = memo(function Header() {
             </nav>
         </header>
     )
-}) 
+} 

@@ -30,11 +30,23 @@ Object.defineProperty(window, 'matchMedia', {
 vi.mock('next/navigation', () => ({
     useRouter: () => ({
         push: vi.fn(),
-        replace: vi.fn(),
         refresh: vi.fn(),
         back: vi.fn(),
         forward: vi.fn(),
     }),
-    usePathname: () => '/current/path',
-    useSearchParams: () => new URLSearchParams(),
+    usePathname: () => '/test',
+}))
+
+// Mock Supabase environment variables
+process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost:54321'
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
+
+// Mock AuthContext
+vi.mock('@/contexts/auth-context', () => ({
+    useAuthContext: () => ({
+        user: null,
+        session: null,
+        loading: false,
+        initialized: true,
+    }),
 })) 
