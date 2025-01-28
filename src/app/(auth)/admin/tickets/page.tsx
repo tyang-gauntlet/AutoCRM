@@ -15,6 +15,10 @@ export default function TicketsPage() {
         async function fetchTickets() {
             if (!user) return
 
+            if (!supabase) {
+                throw new Error('Supabase client not initialized')
+            }
+
             try {
                 const { data, error } = await supabase
                     .from('tickets')

@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,11 +25,34 @@ import remarkGfm from 'remark-gfm'
 import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/contexts/auth-context'
+import { useRouter } from 'next/navigation'
+import { Loader } from 'lucide-react'
 
 export default function UserDashboard() {
     const { tickets, loading: ticketsLoading } = useTickets()
     const { activities, faqs, loading: activityLoading } = useUserActivity()
     const recentTickets = tickets.slice(0, 3) // Show only 3 most recent tickets
+    const { user, profile, loading } = useAuth()
+    const router = useRouter()
+
+    useEffect(() => {
+        if (!loading && !user) {
+            router.push('/login')
+        }
+    }, [user, loading, router])
+
+    if (loading) {
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <Loader size="lg" />
+            </div>
+        )
+    }
+
+    if (!user || !profile) {
+        return null
+    }
 
     const getActivityIcon = (type: string) => {
         switch (type) {

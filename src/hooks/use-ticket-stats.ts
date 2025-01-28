@@ -42,6 +42,7 @@ export function useTicketStats() {
         try {
             setError(null)
             const { data: { session } } = await supabase.auth.getSession()
+            console.log("FETCHING TICKET STATS", session)
             if (!session) {
                 setLoading(false)
                 return
@@ -52,14 +53,14 @@ export function useTicketStats() {
                 .from('tickets')
                 .select('*', { count: 'exact', head: true })
                 .eq('status', 'open')
-
+            console.log("ACTIVE TICKETS", activeTickets)
             // Get high priority tickets count
             const { count: highPriorityCount } = await supabase
                 .from('tickets')
                 .select('*', { count: 'exact', head: true })
                 .in('priority', ['high', 'urgent'])
                 .in('status', ['open', 'in_progress'])
-
+            console.log("HIGH PRIORITY COUNT", highPriorityCount)
             // Calculate queue wait time
             const { data: oldestTicket } = await supabase
                 .from('tickets')
@@ -67,7 +68,7 @@ export function useTicketStats() {
                 .eq('status', 'open')
                 .order('created_at')
                 .limit(1)
-
+            console.log("OLD TICKET", oldestTicket)
             let queueWaitTime = '0m'
             if (oldestTicket?.[0]) {
                 const waitTimeMinutes = Math.round(

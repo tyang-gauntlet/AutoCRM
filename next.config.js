@@ -1,14 +1,22 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    webpack: (config, { isServer }) => {
-        // Add any webpack customizations if needed
-        return config
-    },
-    // Ensure proper transpilation
-    transpilePackages: [],
-    // Improve module resolution
-    poweredByHeader: false,
     reactStrictMode: true,
+    swcMinify: true,
+    // Ensure proper transpilation
+    transpilePackages: [
+        '@supabase/auth-helpers-nextjs',
+        '@supabase/auth-ui-react',
+        '@supabase/auth-ui-shared'
+    ],
+    // Disable image optimization warning
+    images: {
+        remotePatterns: [
+            {
+                protocol: 'https',
+                hostname: '**',
+            },
+        ],
+    },
 }
 
 module.exports = nextConfig 

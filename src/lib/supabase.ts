@@ -10,18 +10,16 @@ let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null
 export const supabase = (() => {
     if (supabaseInstance) return supabaseInstance
 
-    supabaseInstance = createClient<Database>(
+    supabaseInstance = createClient<Database, 'public', Database['public']>(
         supabaseUrl,
         supabaseKey,
         {
             auth: {
                 persistSession: true,
-                detectSessionInUrl: true,
-                storageKey: 'autocrm-auth-token',
-                flowType: 'pkce', // Add PKCE flow for better security
                 autoRefreshToken: true,
+                detectSessionInUrl: true,
+                flowType: 'pkce',
                 storage: {
-                    // Use local storage as fallback if cookies fail
                     getItem: (key) => {
                         try {
                             return localStorage.getItem(key)
@@ -32,6 +30,11 @@ export const supabase = (() => {
                     setItem: (key, value) => {
                         try {
                             localStorage.setItem(key, value)
+                            // Set just the access token in the cookie
+                            const session = JSON.parse(value)
+                            if (session?.access_token) {
+                                document.cookie = `sb-access-token=${session.access_token};path=/;max-age=3600;SameSite=Lax`
+                            }
                         } catch {
                             // Ignore storage errors
                         }
@@ -39,6 +42,7 @@ export const supabase = (() => {
                     removeItem: (key) => {
                         try {
                             localStorage.removeItem(key)
+                            document.cookie = `sb-access-token=;path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT`
                         } catch {
                             // Ignore storage errors
                         }

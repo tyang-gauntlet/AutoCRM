@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -23,22 +23,48 @@ import { formatDistanceToNow } from 'date-fns'
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from '@/contexts/auth-context'
 import { useRouter } from 'next/navigation'
+import { Loader } from 'lucide-react'
 
 export default function AdminDashboard() {
-    const { user, profile, loading: authLoading } = useAuth()
+    const { user, profile, loading, error } = useAuth()
     const router = useRouter()
     const { stats: userStats, loading: userLoading } = useUserStats()
     const { stats: ticketStats, loading: ticketLoading } = useTicketStats()
 
-    React.useEffect(() => {
-        if (!authLoading && (!user || profile?.role !== 'admin')) {
+    useEffect(() => {
+        console.log('[AdminDashboard] Auth state:', {
+            user: user?.id,
+            profile: profile?.id,
+            role: profile?.role,
+            loading,
+            error
+        })
+
+        if (!loading && (!user || profile?.role !== 'admin')) {
+            console.warn('[AdminDashboard] Redirecting non-admin user:', user?.id)
             router.push('/login')
         }
-    }, [authLoading, user, profile, router])
+    }, [user, profile, loading, router])
 
-    if (authLoading || !user || profile?.role !== 'admin') {
+    if (loading) {
+        console.log('[AdminDashboard] Loading state')
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <Loader size="lg" />
+                <span className="ml-2">Verifying admin privileges...</span>
+            </div>
+        )
+    }
+
+    if (!user || profile?.role !== 'admin') {
+        console.warn('[AdminDashboard] Blocked access attempt:', {
+            userId: user?.id,
+            profileRole: profile?.role
+        })
         return null
     }
+
+    console.log('[AdminDashboard] Rendering dashboard for admin:', user.email)
 
     const ticketStatsCards = [
         {

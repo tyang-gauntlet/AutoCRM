@@ -1,0 +1,13 @@
+{
+    "tasks": {
+        "serve": "deno run --allow-net --allow-env index.ts"
+    },
+    "imports": {
+        "std/": "https://deno.land/std@0.168.0/",
+        "@langchain/core/messages": "npm:@langchain/core@0.1.48/messages",
+        "@langchain/core/prompts": "npm:@langchain/core@0.1.48/prompts",
+        "@langchain/core/output_parsers": "npm:@langchain/core@0.1.48/output_parsers",
+        "@langchain/openai": "npm:@langchain/openai@0.3.0",
+        "gpt-3-encoder": "https://esm.sh/gpt-3-encoder@1.1.3"
+    }
+}

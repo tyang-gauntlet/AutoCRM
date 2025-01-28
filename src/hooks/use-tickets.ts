@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import type { Database } from '@/types/database'
+import { supabase } from '@/lib/supabase'
+import { Database } from '@/types/database'
 
 export type Ticket = Database['public']['Tables']['tickets']['Row'] & {
     customer: Pick<Database['public']['Tables']['customers']['Row'], 'name'> | null
@@ -10,13 +10,15 @@ export type Ticket = Database['public']['Tables']['tickets']['Row'] & {
 export function useTickets(priorityFilter?: string) {
     const [tickets, setTickets] = useState<Ticket[]>([])
     const [loading, setLoading] = useState(true)
-    const supabase = createClientComponentClient<Database>()
 
     useEffect(() => {
         const fetchTickets = async () => {
+            if (!supabase) {
+                throw new Error('Supabase client not initialized')
+            }
             const { data: { session } } = await supabase.auth.getSession()
+            console.log("FETCHING TICKETS", session)
             if (!session) return
-
             let query = supabase
                 .from('tickets')
                 .select(`
@@ -31,7 +33,7 @@ export function useTickets(priorityFilter?: string) {
                 const priorities = priorityFilter.split(',')
                 query = query.in('priority', priorities)
             }
-
+            console.log(query)
             const { data, error } = await query
 
             if (!error && data) {
@@ -44,6 +46,9 @@ export function useTickets(priorityFilter?: string) {
 
         fetchTickets()
 
+        if (!supabase) {
+            throw new Error('Supabase client not initialized')
+        }
         const channel = supabase
             .channel('tickets')
             .on('postgres_changes',
@@ -57,6 +62,9 @@ export function useTickets(priorityFilter?: string) {
             .subscribe()
 
         return () => {
+            if (!supabase) {
+                throw new Error('Supabase client not initialized')
+            }
             supabase.removeChannel(channel)
         }
     }, [supabase, priorityFilter])

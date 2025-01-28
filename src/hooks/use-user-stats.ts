@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import type { Database } from '@/types/database'
+import { supabase } from '@/lib/supabase'
 
 type UserStats = {
     totalUsers: number
@@ -18,14 +17,16 @@ export function useUserStats() {
     })
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const supabase = createClientComponentClient<Database>()
 
     const fetchStats = async () => {
         try {
             setError(null)
+            if (!supabase) {
+                throw new Error('Supabase client not initialized')
+            }
             const { data: { session } } = await supabase.auth.getSession()
             if (!session) {
-                setLoading(false)
+                setLoading(true)
                 return
             }
 
@@ -71,6 +72,9 @@ export function useUserStats() {
     useEffect(() => {
         fetchStats()
         // Set up real-time subscription for changes
+        if (!supabase) {
+            throw new Error('Supabase client not initialized')
+        }
         const channel = supabase
             .channel('user-stats')
             .on('postgres_changes', {
@@ -83,6 +87,9 @@ export function useUserStats() {
             .subscribe()
 
         return () => {
+            if (!supabase) {
+                throw new Error('Supabase client not initialized')
+            }
             supabase.removeChannel(channel)
         }
     }, [])

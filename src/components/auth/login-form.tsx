@@ -1,34 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { toast } from 'sonner'
-import {
-    Card,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-    CardContent,
-    CardFooter,
-} from '@/components/ui/card'
-import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-} from '@/components/ui/tabs'
-import { Loader2 } from 'lucide-react'
-import Link from 'next/link'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/contexts/auth-context'
 
 export function LoginForm() {
     const [isLoading, setIsLoading] = useState(false)
     const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login')
-    const router = useRouter()
-    const supabase = createClientComponentClient()
+    const { toast } = useToast()
+    const { signIn, signUp } = useAuth()
 
     // Login state
     const [loginData, setLoginData] = useState({
@@ -49,39 +33,15 @@ export function LoginForm() {
         setIsLoading(true)
 
         try {
-            const { error: signInError, data: { user } } = await supabase.auth.signInWithPassword({
-                email: loginData.email,
-                password: loginData.password,
-            })
-
-            if (signInError) throw signInError
-
-            // Get user's role from profile
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', user?.id)
-                .single()
-
-            toast.success('Successfully logged in')
-
-            // Determine redirect path based on role
-            let redirectPath = '/user/dashboard'
-            if (profile?.role === 'admin') {
-                redirectPath = '/admin/dashboard'
-            } else if (profile?.role === 'reviewer') {
-                redirectPath = '/reviewer/dashboard'
-            }
-
-            router.push(redirectPath)
+            await signIn(loginData.email, loginData.password)
+            // Auth context will handle the redirect
         } catch (error) {
             console.error('Login error:', error)
-            if (error instanceof Error) {
-                toast.error(error instanceof Error ? error.message : 'Failed to login')
-            } else {
-                toast.error('Failed to login')
-            }
-        } finally {
+            toast({
+                variant: 'destructive',
+                title: 'Login failed',
+                description: error instanceof Error ? error.message : 'Failed to login'
+            })
             setIsLoading(false)
         }
     }
@@ -95,27 +55,19 @@ export function LoginForm() {
                 throw new Error('Passwords do not match')
             }
 
-            const { error: signUpError } = await supabase.auth.signUp({
-                email: signupData.email,
-                password: signupData.password,
-                options: {
-                    data: {
-                        full_name: signupData.fullName,
-                    },
-                },
+            await signUp(signupData.email, signupData.password)
+            toast({
+                title: 'Success',
+                description: 'Check your email to confirm your account'
             })
-
-            if (signUpError) throw signUpError
-
-            toast.success('Check your email to confirm your account')
             setActiveTab('login')
         } catch (error) {
             console.error('Signup error:', error)
-            if (error instanceof Error) {
-                toast.error(error.message || 'Failed to sign up')
-            } else {
-                toast.error('Failed to sign up')
-            }
+            toast({
+                variant: 'destructive',
+                title: 'Signup failed',
+                description: error instanceof Error ? error.message : 'Failed to sign up'
+            })
         } finally {
             setIsLoading(false)
         }
@@ -123,121 +75,70 @@ export function LoginForm() {
 
     return (
         <Card className="w-full max-w-[400px]">
-            <CardHeader className="space-y-1">
-                <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-                <CardDescription>
-                    Choose your preferred sign in method
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'login' | 'signup')}>
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="login">Login</TabsTrigger>
-                        <TabsTrigger value="signup">Sign Up</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="login">
-                        <form onSubmit={handleLogin} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Email</Label>
-                                <Input
-                                    id="email"
-                                    placeholder="name@example.com"
-                                    type="email"
-                                    autoCapitalize="none"
-                                    autoComplete="email"
-                                    autoCorrect="off"
-                                    disabled={isLoading}
-                                    value={loginData.email}
-                                    onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="password">Password</Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    disabled={isLoading}
-                                    value={loginData.password}
-                                    onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                                />
-                            </div>
-                            <Button className="w-full" type="submit" disabled={isLoading}>
-                                {isLoading && (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                )}
-                                Sign In
-                            </Button>
-                        </form>
-                    </TabsContent>
-                    <TabsContent value="signup">
-                        <form onSubmit={handleSignup} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="signup-fullname">Full Name</Label>
-                                <Input
-                                    id="signup-fullname"
-                                    placeholder="John Doe"
-                                    type="text"
-                                    disabled={isLoading}
-                                    value={signupData.fullName}
-                                    onChange={(e) => setSignupData({ ...signupData, fullName: e.target.value })}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="signup-email">Email</Label>
-                                <Input
-                                    id="signup-email"
-                                    placeholder="name@example.com"
-                                    type="email"
-                                    autoCapitalize="none"
-                                    autoComplete="email"
-                                    autoCorrect="off"
-                                    disabled={isLoading}
-                                    value={signupData.email}
-                                    onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="signup-password">Password</Label>
-                                <Input
-                                    id="signup-password"
-                                    type="password"
-                                    disabled={isLoading}
-                                    value={signupData.password}
-                                    onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="signup-confirm-password">Confirm Password</Label>
-                                <Input
-                                    id="signup-confirm-password"
-                                    type="password"
-                                    disabled={isLoading}
-                                    value={signupData.confirmPassword}
-                                    onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
-                                />
-                            </div>
-                            <Button className="w-full" type="submit" disabled={isLoading}>
-                                {isLoading && (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                )}
-                                Create Account
-                            </Button>
-                        </form>
-                    </TabsContent>
-                </Tabs>
-            </CardContent>
-            <CardFooter>
-                <div className="text-sm text-muted-foreground text-center w-full">
-                    By continuing, you agree to our{' '}
-                    <Link href="/terms" className="underline hover:text-primary">
-                        Terms of Service
-                    </Link>
-                    {' '}and{' '}
-                    <Link href="/privacy" className="underline hover:text-primary">
-                        Privacy Policy
-                    </Link>
-                </div>
-            </CardFooter>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'login' | 'signup')}>
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="login">Login</TabsTrigger>
+                    <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="login" className="p-6">
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        <Input
+                            type="email"
+                            placeholder="Email"
+                            value={loginData.email}
+                            onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
+                            required
+                        />
+                        <Input
+                            type="password"
+                            placeholder="Password"
+                            value={loginData.password}
+                            onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
+                            required
+                        />
+                        <Button type="submit" className="w-full" disabled={isLoading}>
+                            {isLoading ? 'Logging in...' : 'Login'}
+                        </Button>
+                    </form>
+                </TabsContent>
+
+                <TabsContent value="signup" className="p-6">
+                    <form onSubmit={handleSignup} className="space-y-4">
+                        <Input
+                            type="text"
+                            placeholder="Full Name"
+                            value={signupData.fullName}
+                            onChange={(e) => setSignupData(prev => ({ ...prev, fullName: e.target.value }))}
+                            required
+                        />
+                        <Input
+                            type="email"
+                            placeholder="Email"
+                            value={signupData.email}
+                            onChange={(e) => setSignupData(prev => ({ ...prev, email: e.target.value }))}
+                            required
+                        />
+                        <Input
+                            type="password"
+                            placeholder="Password"
+                            value={signupData.password}
+                            onChange={(e) => setSignupData(prev => ({ ...prev, password: e.target.value }))}
+                            required
+                        />
+                        <Input
+                            type="password"
+                            placeholder="Confirm Password"
+                            value={signupData.confirmPassword}
+                            onChange={(e) => setSignupData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                            required
+                        />
+                        <Button type="submit" className="w-full" disabled={isLoading}>
+                            {isLoading ? 'Signing up...' : 'Sign Up'}
+                        </Button>
+                    </form>
+                </TabsContent>
+            </Tabs>
         </Card>
     )
 } 
