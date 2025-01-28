@@ -14,6 +14,7 @@ import {
     Shield,
     UserCog,
     Star,
+    Activity,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useUserStats } from '@/hooks/use-user-stats'
@@ -29,20 +30,8 @@ export default function AdminDashboard() {
     const { stats: userStats, loading: userLoading } = useUserStats()
     const { stats: ticketStats, loading: ticketLoading } = useTicketStats()
 
-    console.log('🔷 Admin Dashboard: Auth state:', {
-        loading: authLoading,
-        user: !!user,
-        role: profile?.role
-    })
-
     React.useEffect(() => {
-        console.log('🔷 Admin Dashboard: Checking auth...', {
-            authLoading,
-            user: !!user,
-            role: profile?.role
-        })
         if (!authLoading && (!user || profile?.role !== 'admin')) {
-            console.log('🔷 Admin Dashboard: Redirecting to login')
             router.push('/login')
         }
     }, [authLoading, user, profile, router])
@@ -133,17 +122,20 @@ export default function AdminDashboard() {
                         </Link>
                     </div>
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                            <div className="flex items-center gap-3">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                                 <Users className="h-5 w-5 text-muted-foreground" />
                                 <div>
                                     <p className="font-medium">Total Users</p>
                                     <p className="text-2xl font-bold">{userLoading ? '...' : userStats.totalUsers}</p>
                                 </div>
                             </div>
-                            <div className="text-right">
-                                <p className="font-medium">Active Today</p>
-                                <p className="text-2xl font-bold text-primary">{userLoading ? '...' : userStats.activeToday}</p>
+                            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                                <Activity className="h-5 w-5 text-muted-foreground" />
+                                <div>
+                                    <p className="font-medium">Active Today</p>
+                                    <p className="text-2xl font-bold text-primary">{userLoading ? '...' : userStats.activeToday}</p>
+                                </div>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">

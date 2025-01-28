@@ -22,11 +22,12 @@ import {
 
 interface ArticlesTableProps {
     articles: KBArticle[]
-    onEdit?: (article: KBArticle) => void
-    onDelete?: (article: KBArticle) => void
+    onEdit: (article: KBArticle) => void
+    onDelete: (article: KBArticle) => void
     hideSearch?: boolean
     columnVisibility?: VisibilityState
     onColumnVisibilityChange?: OnChangeFn<VisibilityState>
+    renderActions?: (article: KBArticle) => React.ReactNode
 }
 
 const columnLabels: Record<string, string> = {
@@ -42,7 +43,8 @@ export function ArticlesTable({
     onDelete,
     hideSearch,
     columnVisibility = {},
-    onColumnVisibilityChange
+    onColumnVisibilityChange,
+    renderActions
 }: ArticlesTableProps) {
     const router = useRouter()
     const [searchQuery, setSearchQuery] = useState('')

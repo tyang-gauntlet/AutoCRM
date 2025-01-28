@@ -27,6 +27,7 @@ import remarkParse from 'remark-parse'
 import remarkGfm from 'remark-gfm'
 import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
+import Link from 'next/link'
 
 const AVAILABLE_TAGS = [
     'getting-started',
@@ -197,6 +198,17 @@ export default function ArticleEditorPage({ params }: { params: { id: string } }
                         )}
                         dangerouslySetInnerHTML={{ __html: preview }}
                     />
+                    {article?.slug && (
+                        <Button asChild>
+                            <Link
+                                href={`/kb/articles/${article.slug}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                View Published
+                            </Link>
+                        </Button>
+                    )}
                 </div>
             </div>
         </div>

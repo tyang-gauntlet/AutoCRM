@@ -3,6 +3,7 @@ import { Progress } from '@/components/ui/progress'
 import { useAIMetrics } from '@/hooks/use-ai-metrics'
 import { Brain, MessageSquare, TrendingUp } from 'lucide-react'
 import { MetricsDisplay } from './metrics-display'
+import { useTicketStats } from '@/hooks/use-ticket-stats'
 
 export function MetricsDashboard() {
     const stats = useTicketStats()
@@ -17,10 +18,10 @@ export function MetricsDashboard() {
                     </div>
                     <div className="mt-2">
                         <div className="text-2xl font-bold">
-                            {stats.aiResolutionRate}%
+                            {stats.stats.aiResolutionRate}%
                         </div>
                         <p className="text-sm text-muted-foreground">
-                            {stats.autoResolvedToday} tickets auto-resolved today
+                            {stats.stats.autoResolvedToday} tickets auto-resolved today
                         </p>
                     </div>
                 </Card>

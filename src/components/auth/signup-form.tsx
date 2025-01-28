@@ -20,8 +20,8 @@ export function SignUpForm() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         try {
-            const { error: signUpError } = await signUp(email, password)
-            if (!signUpError) {
+            await signUp(email, password)
+            if (!error) {
                 // Redirect to login on successful signup
                 router.push('/login')
             }

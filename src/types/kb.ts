@@ -27,8 +27,6 @@ export type KBArticle = BaseKBArticle & {
 }
 
 export type KBCategory = Database['public']['Tables']['kb_categories']['Row']
-export type KBChunk = Database['public']['Tables']['kb_article_chunks']['Row']
-export type KBVersion = Database['public']['Tables']['kb_article_versions']['Row']
 
 export type ArticleStatus = 'draft' | 'published' | 'archived'
 export type SourceType = 'manual' | 'pdf' | 'doc' | 'docx' | 'md'

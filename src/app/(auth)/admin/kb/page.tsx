@@ -12,6 +12,7 @@ import { Plus, Search, Settings2 } from 'lucide-react'
 import { Database } from '@/types/database'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { VisibilityState } from '@tanstack/react-table'
+import Link from 'next/link'
 
 const COLUMNS = {
     title: 'Title',
@@ -135,6 +136,17 @@ export default function KBManagementPage() {
                     hideSearch
                     columnVisibility={columnVisibility}
                     onColumnVisibilityChange={setColumnVisibility}
+                    renderActions={(article) => (
+                        <Button variant="ghost" size="sm" asChild>
+                            <Link
+                                href={`/kb/articles/${article.slug}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                View Published
+                            </Link>
+                        </Button>
+                    )}
                 />
             )}
         </div>

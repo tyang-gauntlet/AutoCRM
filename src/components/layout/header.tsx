@@ -4,10 +4,18 @@ import * as React from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { useRole } from '@/hooks/use-role'
 import { Button } from '@/components/ui/button'
-import { LogOut, Loader2 } from 'lucide-react'
+import { LogOut, Loader2, Settings, BookOpen, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export function Header() {
     const { user, loading: authLoading } = useAuth()
@@ -77,6 +85,35 @@ export function Header() {
                         >
                             {displayRole}
                         </span>
+                        {role === 'admin' && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="gap-2"
+                                    >
+                                        <Settings className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start">
+                                    <DropdownMenuLabel>Knowledge Base</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem asChild>
+                                        <Link href="/admin/kb">
+                                            <BookOpen className="mr-2 h-4 w-4" />
+                                            <span>Manage Articles</span>
+                                        </Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <Link href="/admin/kb/new">
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            <span>New Article</span>
+                                        </Link>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
                         <Button
                             variant="ghost"
                             size="icon"

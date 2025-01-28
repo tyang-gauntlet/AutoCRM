@@ -39,96 +39,53 @@ export function useTicketDetails(ticketId: string | undefined, role?: 'reviewer'
     const [ticket, setTicket] = useState<Ticket | null>(null)
     const [messages, setMessages] = useState<Message[]>([])
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
     const supabase = createClientComponentClient<Database>()
 
-    // Fetch ticket and messages
-    const fetchTicket = useCallback(async () => {
-        if (!ticketId) {
-            setTicket(null)
-            setMessages([])
-            setLoading(false)
-            return
-        }
+    const fetchTicket = async () => {
+        if (!ticketId) return
 
-        console.log('Fetching ticket:', ticketId)
         try {
+            setLoading(true)
+            setError(null)
+
+            // Get ticket with creator's email in a single query
             const { data: ticketData, error: ticketError } = await supabase
                 .from('tickets')
                 .select(`
                     *,
-                    customer:customers(name, email),
-                    assigned:profiles!tickets_assigned_to_fkey(full_name),
-                    creator:profiles!tickets_created_by_fkey(email)
+                    created_by_profile:profiles!tickets_created_by_fkey (
+                        email
+                    )
                 `)
                 .eq('id', ticketId)
                 .single()
 
             if (ticketError) throw ticketError
 
-            // If we have a creator ID, fetch their email
-            let formattedTicket = {
-                ...ticketData,
-                customer: ticketData.customer,
-                assigned: ticketData.assigned,
-                creator: null
-            } as Ticket
-
-            if (ticketData.created_by) {
-                const { data: creatorData } = await supabase
-                    .rpc('get_user_emails', {
-                        user_ids: [ticketData.created_by]
-                    })
-
-                if (creatorData?.[0]) {
-                    formattedTicket.creator = { email: creatorData[0].email }
+            if (ticketData) {
+                const formattedTicket: Ticket = {
+                    ...ticketData,
+                    customer: null,
+                    assigned: null,
+                    creator: ticketData.created_by_profile
+                        ? { email: ticketData.created_by_profile.email }
+                        : null,
+                    priority: ticketData.priority as TicketPriority,
+                    status: ticketData.status as TicketStatus
                 }
+                setTicket(formattedTicket)
             }
-
-            console.log('Ticket data received:', formattedTicket)
-            setTicket(formattedTicket)
-
-            // First get all messages to collect sender IDs
-            const { data: messages, error: messagesError } = await supabase
-                .from('ticket_messages')
-                .select(`
-                    *,
-                    sender:profiles(
-                        id,
-                        full_name
-                    )
-                `)
-                .eq('ticket_id', ticketId)
-                .order('created_at', { ascending: true })
-
-            if (messagesError) throw messagesError
-
-            // Get unique sender IDs
-            const senderIds = Array.from(new Set(
-                messages?.map(msg => msg.sender_id).filter((id): id is string => id !== null)
-            ))
-
-            // Get emails for all senders
-            const { data: emailData } = await supabase
-                .rpc('get_user_emails', {
-                    user_ids: senderIds
-                })
-
-            // Map the emails to the messages
-            const emailMap = new Map(emailData?.map(u => [u.id, u.email]) || [])
-            const messagesWithEmails = messages?.map(msg => ({
-                ...msg,
-                sender: {
-                    ...msg.sender,
-                    email: emailMap.get(msg.sender_id || '') || 'Unknown'
-                }
-            }))
-
-            setMessages(messagesWithEmails as Message[])
-        } catch (error) {
-            console.error('Error fetching data:', error)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to fetch ticket')
         } finally {
             setLoading(false)
         }
+    }
+
+    // Fetch ticket and messages
+    useEffect(() => {
+        fetchTicket()
     }, [ticketId])
 
     // Send message
@@ -136,11 +93,10 @@ export function useTicketDetails(ticketId: string | undefined, role?: 'reviewer'
         if (!ticketId) return false
 
         try {
-            // Get current user ID
             const { data: { user }, error: userError } = await supabase.auth.getUser()
             if (userError || !user) throw new Error('No authenticated user')
 
-            // First insert the message
+            // Insert message and get sender profile in one query
             const { data: messageData, error: messageError } = await supabase
                 .from('ticket_messages')
                 .insert({
@@ -150,31 +106,24 @@ export function useTicketDetails(ticketId: string | undefined, role?: 'reviewer'
                 })
                 .select(`
                     *,
-                    sender:profiles(
+                    sender:profiles!ticket_messages_sender_id_fkey (
                         id,
-                        full_name
+                        full_name,
+                        email
                     )
                 `)
                 .single()
 
             if (messageError) throw messageError
-            if (!messageData.sender_id) throw new Error('No sender ID')
-
-            // Then get the sender's email
-            const { data: emailData } = await supabase
-                .rpc('get_user_emails', {
-                    user_ids: [messageData.sender_id]
-                })
 
             const newMessage = {
                 ...messageData,
                 sender: {
-                    ...messageData.sender,
-                    email: emailData?.[0]?.email || 'Unknown'
+                    full_name: messageData.sender?.full_name || 'Unknown',
+                    email: messageData.sender?.email || 'Unknown'
                 }
             }
 
-            console.log('Sent message with email:', newMessage)
             setMessages(current => [...current, newMessage as Message])
             return true
         } catch (error) {
@@ -298,9 +247,10 @@ export function useTicketDetails(ticketId: string | undefined, role?: 'reviewer'
                             .from('ticket_messages')
                             .select(`
                                 *,
-                                sender:profiles(
+                                sender:profiles!ticket_messages_sender_id_fkey (
                                     id,
-                                    full_name
+                                    full_name,
+                                    email
                                 )
                             `)
                             .eq('id', payload.new.id)
@@ -310,16 +260,12 @@ export function useTicketDetails(ticketId: string | undefined, role?: 'reviewer'
                         if (!messageData.sender_id) throw new Error('No sender ID')
 
                         // Then get the sender's email
-                        const { data: emailData } = await supabase
-                            .rpc('get_user_emails', {
-                                user_ids: [messageData.sender_id]
-                            })
 
                         const newMessage = {
                             ...messageData,
                             sender: {
                                 ...messageData.sender,
-                                email: emailData?.[0]?.email || 'Unknown'
+                                email: messageData.sender?.email || 'Unknown'
                             }
                         }
 

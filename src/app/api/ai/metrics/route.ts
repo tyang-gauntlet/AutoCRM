@@ -1,9 +1,9 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { LangSmithClient } from 'langsmith'
+import { Client } from 'langsmith'
 
-const langsmith = new LangSmithClient({
+const langsmith = new Client({
     apiUrl: process.env.LANGSMITH_API_URL,
     apiKey: process.env.LANGSMITH_API_KEY,
 })
@@ -25,10 +25,8 @@ export async function POST(request: Request) {
 
         // Record in LangSmith
         await langsmith.updateRun(trace_id, {
-            feedback: {
-                ...metrics,
-                timestamp: new Date().toISOString()
-            }
+            ...metrics,
+            timestamp: new Date().toISOString()
         })
 
         // Calculate overall score based on metric type

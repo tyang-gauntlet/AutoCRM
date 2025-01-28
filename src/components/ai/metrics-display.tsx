@@ -1,3 +1,5 @@
+'use client'
+
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Bot, Brain, MessageSquare } from 'lucide-react'

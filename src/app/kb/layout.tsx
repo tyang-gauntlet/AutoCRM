@@ -1,4 +1,5 @@
 import { Metadata } from 'next'
+import { KBHeader } from './components/header'
 
 export const metadata: Metadata = {
     title: {
@@ -15,6 +16,7 @@ export default function KBLayout({
 }) {
     return (
         <div className="min-h-screen bg-background">
+            <KBHeader />
             {children}
         </div>
     )

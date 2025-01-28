@@ -1,3 +1,5 @@
+'use client'
+
 import { useCallback, useEffect, useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { AIMetric, MetricsResponse } from '@/types/ai/metrics'

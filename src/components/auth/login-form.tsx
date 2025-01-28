@@ -60,7 +60,7 @@ export function LoginForm() {
             const { data: profile } = await supabase
                 .from('profiles')
                 .select('role')
-                .eq('id', user.id)
+                .eq('id', user?.id)
                 .single()
 
             toast.success('Successfully logged in')
@@ -76,7 +76,11 @@ export function LoginForm() {
             router.push(redirectPath)
         } catch (error) {
             console.error('Login error:', error)
-            toast.error(error.message || 'Failed to login')
+            if (error instanceof Error) {
+                toast.error(error instanceof Error ? error.message : 'Failed to login')
+            } else {
+                toast.error('Failed to login')
+            }
         } finally {
             setIsLoading(false)
         }
@@ -107,7 +111,11 @@ export function LoginForm() {
             setActiveTab('login')
         } catch (error) {
             console.error('Signup error:', error)
-            toast.error(error.message || 'Failed to sign up')
+            if (error instanceof Error) {
+                toast.error(error.message || 'Failed to sign up')
+            } else {
+                toast.error('Failed to sign up')
+            }
         } finally {
             setIsLoading(false)
         }

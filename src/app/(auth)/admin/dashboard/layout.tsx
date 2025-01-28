@@ -9,10 +9,8 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
     const { loading } = useAuth()
-    console.log('🟣 Admin Dashboard Layout: Loading state:', loading)
 
     if (loading) {
-        console.log('🟣 Admin Dashboard Layout: Showing loading spinner')
         return (
             <div className="flex h-screen items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin" />
@@ -20,6 +18,5 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         )
     }
 
-    console.log('🟣 Admin Dashboard Layout: Rendering children')
     return <>{children}</>
 } 

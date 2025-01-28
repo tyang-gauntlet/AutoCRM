@@ -148,7 +148,9 @@ export function useTicketStats() {
             const uniqueUserIds = Array.from(new Set(userIds))
 
             const { data: userEmails } = await supabase
-                .rpc('get_user_emails', { user_ids: uniqueUserIds })
+                .from('profiles')
+                .select('id, email')
+                .in('id', uniqueUserIds)
 
             // Create a map of user IDs to emails
             const emailMap = new Map(userEmails?.map(u => [u.id, u.email]) || [])

@@ -81,7 +81,7 @@ export default function UserDashboard() {
                         Browse our knowledge base
                     </p>
                     <Button className="w-full" asChild>
-                        <Link href="/user/kb">Search</Link>
+                        <Link href="/kb">Search</Link>
                     </Button>
                 </Card>
             </div>
@@ -157,7 +157,7 @@ export default function UserDashboard() {
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold">Frequently Asked Questions</h3>
                         <Button variant="ghost" className="gap-2" asChild>
-                            <Link href="/user/kb">
+                            <Link href="/kb">
                                 Browse All <ArrowRight className="h-4 w-4" />
                             </Link>
                         </Button>
@@ -169,7 +169,7 @@ export default function UserDashboard() {
                             faqs.map((faq) => (
                                 <Card key={faq.id} className="p-6">
                                     <Link
-                                        href={`/user/kb/articles/${faq.slug}`}
+                                        href={`/kb/articles/${faq.slug}`}
                                         className="block hover:no-underline"
                                     >
                                         <h3 className="text-xl font-semibold mb-2 text-primary hover:text-primary/80">

@@ -137,12 +137,12 @@ export default function UsersManagement() {
                                     <TableCell>{user.full_name}</TableCell>
                                     <TableCell>
                                         <Select
-                                            value={user.role}
+                                            value={user.role || 'user'}
                                             onValueChange={(value) => handleRoleChange(user.id, value)}
                                         >
                                             <SelectTrigger className="w-[120px]">
                                                 <div className="flex items-center gap-2">
-                                                    {getRoleIcon(user.role)}
+                                                    {getRoleIcon(user.role || 'user')}
                                                     <span className="capitalize">{user.role}</span>
                                                 </div>
                                             </SelectTrigger>
