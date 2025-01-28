@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
 import { supabase } from '@/lib/supabase'
+
 interface AuthContextType {
     user: User | null
     profile: Database['public']['Tables']['profiles']['Row'] | null
@@ -31,12 +32,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [error, setError] = useState<string | null>(null)
     const [initialized, setInitialized] = useState(false)
 
-
     const fetchProfile = async (userId: string) => {
         try {
-            if (!supabase) {
-                throw new Error('Supabase client not initialized')
-            }
+            console.log('[AuthContext] Fetching profile:', userId)
             const { data: profile, error } = await supabase
                 .from('profiles')
                 .select('*')
@@ -44,18 +42,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .single()
 
             if (error) {
-                console.error('[Auth] Profile fetch error:', error)
+                console.error('[AuthContext] Profile fetch error:', error)
                 if (error.code === 'PGRST116') {
+                    console.log('[AuthContext] Creating new profile for:', userId)
                     const { data: newProfile, error: createError } = await supabase
                         .from('profiles')
-                        .insert([
-                            {
-                                id: userId,
-                                role: 'user',
-                                created_at: new Date().toISOString(),
-                                updated_at: new Date().toISOString()
-                            }
-                        ])
+                        .insert([{ id: userId, role: 'user' }])
                         .select()
                         .single()
 
@@ -64,125 +56,123 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
                 throw error
             }
+            console.log('[AuthContext] Profile fetched:', profile)
             return profile
         } catch (error) {
-            console.error('[Auth] Profile fetch error:', error)
+            console.error('[AuthContext] Profile error:', error)
             return null
         }
     }
 
     useEffect(() => {
-        let mounted = true
+        console.log('[AuthContext] Initializing auth...')
 
         const initAuth = async () => {
             try {
-                if (!supabase) {
-                    throw new Error('Supabase client not initialized')
-                }
-                const { data: { session } } = await supabase.auth.getSession()
+                console.log('[AuthContext] Getting initial session...')
+                const { data: { session }, error } = await supabase.auth.getSession()
 
-                if (!mounted) return
+                console.log('[AuthContext] Initial session:', {
+                    hasSession: !!session,
+                    userId: session?.user?.id,
+                    userRole: session?.user?.app_metadata?.role,
+                    accessToken: session?.access_token?.slice(-10)
+                })
 
                 if (session?.user) {
                     setUser(session.user)
                     const profile = await fetchProfile(session.user.id)
-                    if (mounted) {
-                        setProfile(profile)
-                    }
+                    setProfile(profile)
                 }
             } catch (error) {
-                console.error('[Auth] Init error:', error)
-                if (mounted) {
-                    setError(error instanceof Error ? error.message : 'Authentication failed')
-                }
+                console.error('[AuthContext] Init error:', error)
+                setError(error instanceof Error ? error.message : 'Auth failed')
             } finally {
-                if (mounted) {
-                    setLoading(false)
-                    setInitialized(true)
-                }
+                setLoading(false)
+                setInitialized(true)
             }
         }
 
         initAuth()
 
-        if (!supabase) {
-            throw new Error('Supabase client not initialized')
-        }
-
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
-                console.log('[Auth] State change:', { event, userId: session?.user?.id })
-
-                if (!mounted) return
-
-                setUser(session?.user ?? null)
+                console.log('[AuthContext] Auth state change:', {
+                    event,
+                    userId: session?.user?.id,
+                    userRole: session?.user?.app_metadata?.role,
+                    hasAccessToken: !!session?.access_token
+                })
 
                 if (session?.user) {
+                    setUser(session.user)
                     const profile = await fetchProfile(session.user.id)
-                    if (mounted) {
-                        setProfile(profile)
-                    }
+                    setProfile(profile)
                 } else {
+                    setUser(null)
                     setProfile(null)
                 }
-
                 setLoading(false)
             }
         )
 
         return () => {
-            mounted = false
+            console.log('[AuthContext] Cleaning up auth subscription')
             subscription.unsubscribe()
         }
     }, [])
 
-    // Don't render anything until we've initialized
+    // Log state changes
+    useEffect(() => {
+        console.log('[AuthContext] State updated:', {
+            hasUser: !!user,
+            userId: user?.id,
+            userRole: user?.app_metadata?.role,
+            hasProfile: !!profile,
+            profileRole: profile?.role,
+            loading,
+            error
+        })
+    }, [user, profile, loading, error])
+
+    // Don't render until fully initialized
     if (!initialized) {
         return null
     }
 
     const signIn = async (email: string, password: string) => {
         try {
-            if (!supabase) {
-                throw new Error('Supabase client not initialized')
-            }
             const { data, error } = await supabase.auth.signInWithPassword({
                 email,
                 password
             })
             if (error) throw error
 
-            // Get user role from metadata
-            const userRole = data.user?.app_metadata?.role || 'user'
+            // Set session in cookie
+            if (data.session) {
+                // Store the full session in localStorage
+                localStorage.setItem('supabase.auth.token', JSON.stringify({
+                    access_token: data.session.access_token,
+                    expires_at: Math.floor(Date.now() / 1000) + 3600,
+                    refresh_token: data.session.refresh_token
+                }))
 
-            // Set both tokens in cookies with proper expiry
-            const accessExpiry = 3600 // 1 hour
-            const refreshExpiry = 7200 // 2 hours
-            document.cookie = `sb-access-token=${data.session?.access_token};path=/;max-age=${accessExpiry};SameSite=Lax`
-            if (data.session?.refresh_token) {
-                document.cookie = `sb-refresh-token=${data.session.refresh_token};path=/;max-age=${refreshExpiry};SameSite=Lax`
+                // Set access token in cookie for middleware
+                document.cookie = `sb-access-token=${data.session.access_token};path=/;max-age=3600;SameSite=Lax`
             }
 
-            // Get redirect path from URL or use role-based default
-            const params = new URLSearchParams(window.location.search)
-            const from = params.get('from')
-
-            // Role-based dashboard paths
+            // Get redirect path based on role
+            const userRole = data.user?.app_metadata?.role || 'user'
             const dashboardPaths = {
                 admin: '/admin/dashboard',
                 reviewer: '/reviewer/dashboard',
                 user: '/user/dashboard'
             }
 
-            // Use the 'from' path if it exists and is valid, otherwise use role-based dashboard
-            const redirectTo = (from && !from.startsWith('/login'))
-                ? from
-                : dashboardPaths[userRole as keyof typeof dashboardPaths] || dashboardPaths.user
-
             // Force a full page navigation
-            window.location.href = redirectTo
+            window.location.href = dashboardPaths[userRole as keyof typeof dashboardPaths] || '/user/dashboard'
         } catch (error) {
-            console.error('[Auth] Sign in error:', error)
+            console.error('[AuthContext] Sign in error:', error)
             throw error
         }
     }

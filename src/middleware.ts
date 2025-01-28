@@ -1,7 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import type { Database } from '@/types/database'
 
 // Export the config first
 export const config = {
@@ -28,65 +27,93 @@ type UserRole = 'admin' | 'reviewer' | 'user'
 export async function middleware(req: NextRequest) {
     const res = NextResponse.next()
 
-    // Create Supabase client with cookie handling
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                get(name: string) {
-                    return req.cookies.get(name)?.value
-                },
-                set(name: string, value: string, options: any) {
-                    res.cookies.set({
-                        name,
-                        value,
-                        ...options,
-                        path: '/',
-                        sameSite: 'lax',
-                        secure: process.env.NODE_ENV === 'production',
-                        httpOnly: true
-                    })
-                },
-                remove(name: string, options: any) {
-                    res.cookies.delete({
-                        name,
-                        ...options,
-                        path: '/'
-                    })
-                },
-            },
-        }
-    )
-
     try {
-        // Get both tokens
         const accessToken = req.cookies.get('sb-access-token')?.value
-        const refreshToken = req.cookies.get('sb-refresh-token')?.value
 
-        // Debug tokens
-        console.log('[Middleware] Tokens:', {
+        console.log('[Middleware] Token:', {
             hasAccess: !!accessToken,
-            hasRefresh: !!refreshToken,
             path: req.nextUrl.pathname
         })
 
-        // Try to get or refresh session
+        // Get session from access token
         let session = null
         if (accessToken) {
-            const { data, error } = await supabase.auth.getSession()
-            if (!error) {
-                session = data.session
-            }
-        }
+            try {
+                // Create client with auth header
+                const supabase = createServerClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+                    {
+                        auth: {
+                            persistSession: false,
+                            autoRefreshToken: false,
+                            detectSessionInUrl: false
+                        },
+                        global: {
+                            headers: {
+                                Authorization: `Bearer ${accessToken}`
+                            }
+                        },
+                        cookies: {
+                            get(name: string) {
+                                return req.cookies.get(name)?.value
+                            },
+                            set(name: string, value: string, options: any) {
+                                res.cookies.set({
+                                    name,
+                                    value,
+                                    ...options,
+                                    path: '/',
+                                    sameSite: 'lax',
+                                    secure: process.env.NODE_ENV === 'production',
+                                    httpOnly: true
+                                })
+                            },
+                            remove(name: string, options: any) {
+                                res.cookies.delete({
+                                    name,
+                                    ...options,
+                                    path: '/'
+                                })
+                            },
+                            getAll() {
+                                return req.cookies.getAll().reduce((cookies: Record<string, string>, cookie) => {
+                                    cookies[cookie.name] = cookie.value
+                                    return cookies
+                                }, {})
+                            },
+                            setAll(cookieStrings: string[]) {
+                                cookieStrings.map(cookieString => {
+                                    res.headers.append('Set-Cookie', cookieString)
+                                })
+                            }
+                        }
+                    }
+                )
 
-        // If no session but we have tokens, try to refresh
-        if (!session && refreshToken) {
-            const { data, error } = await supabase.auth.refreshSession({
-                refresh_token: refreshToken
-            })
-            if (!error) {
-                session = data.session
+                // Try to get user with token
+                const { data: { user }, error } = await supabase.auth.getUser(accessToken)
+
+                console.log('[Middleware] Auth check:', {
+                    hasUser: !!user,
+                    userId: user?.id,
+                    userRole: user?.app_metadata?.role,
+                    error: error?.message
+                })
+
+                if (!error && user) {
+                    session = {
+                        access_token: accessToken,
+                        user,
+                        expires_at: Math.floor(Date.now() / 1000) + 3600
+                    }
+                    console.log('[Middleware] Auth valid:', {
+                        userId: user.id,
+                        role: user.app_metadata.role
+                    })
+                }
+            } catch (error) {
+                console.warn('[Middleware] Auth error:', error)
             }
         }
 
@@ -94,7 +121,6 @@ export async function middleware(req: NextRequest) {
         const isPublicRoute = publicRoutes.has(path) ||
             Array.from(publicRoutes).some(route => path.startsWith(route))
 
-        // Debug session state
         console.log('[Middleware] Auth state:', {
             path,
             hasSession: !!session,
@@ -103,29 +129,49 @@ export async function middleware(req: NextRequest) {
             isPublicRoute
         })
 
-        // If no session and trying to access protected route
+        // Redirect to login if no session on protected route
         if (!session && !isPublicRoute) {
-            const redirectUrl = new URL('/login', req.url)
-            redirectUrl.searchParams.set('from', path)
-            return NextResponse.redirect(redirectUrl)
+            console.log('[Middleware] No valid session, redirecting to login')
+            return NextResponse.redirect(new URL('/login', req.url))
         }
 
         // If has session and on login page
         if (session && path === '/login') {
             const userRole = session.user.app_metadata.role || 'user'
-            const from = req.nextUrl.searchParams.get('from')
-
             const dashboardPaths = {
                 admin: '/admin/dashboard',
                 reviewer: '/reviewer/dashboard',
                 user: '/user/dashboard'
             } as const
 
-            // Determine redirect path
-            const redirectTo = from || dashboardPaths[userRole as UserRole] || '/user/dashboard'
-
+            const redirectTo = dashboardPaths[userRole as UserRole] || '/user/dashboard'
             console.log('[Middleware] Redirecting to:', redirectTo)
             return NextResponse.redirect(new URL(redirectTo, req.url))
+        }
+
+        // Role-based route protection
+        const roleBasedPaths = {
+            admin: '/admin',
+            reviewer: '/reviewer',
+            user: '/user'
+        }
+
+        // Check if user has access to this path
+        if (session) {
+            const userRole = session.user.app_metadata.role || 'user'
+            const allowedPath = roleBasedPaths[userRole as UserRole]
+
+            // If trying to access a role-based path
+            for (const [role, path] of Object.entries(roleBasedPaths)) {
+                if (req.nextUrl.pathname.startsWith(path) && role !== userRole) {
+                    console.log('[Middleware] Invalid role access:', {
+                        userRole,
+                        attemptedPath: req.nextUrl.pathname
+                    })
+                    // Redirect to their proper dashboard
+                    return NextResponse.redirect(new URL(dashboardPaths[userRole as UserRole], req.url))
+                }
+            }
         }
 
         // Add auth headers
@@ -138,10 +184,6 @@ export async function middleware(req: NextRequest) {
         return res
     } catch (error) {
         console.error('[Middleware] Error:', error)
-        const redirectUrl = new URL('/login', req.url)
-        if (!publicRoutes.has(req.nextUrl.pathname)) {
-            redirectUrl.searchParams.set('from', req.nextUrl.pathname)
-        }
-        return NextResponse.redirect(redirectUrl)
+        return NextResponse.redirect(new URL('/login', req.url))
     }
 }

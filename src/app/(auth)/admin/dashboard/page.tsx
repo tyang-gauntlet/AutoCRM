@@ -34,33 +34,29 @@ export default function AdminDashboard() {
     useEffect(() => {
         console.log('[AdminDashboard] Auth state:', {
             user: user?.id,
+            userRole: user?.app_metadata?.role,
             profile: profile?.id,
-            role: profile?.role,
+            profileRole: profile?.role,
             loading,
             error
         })
 
-        if (!loading && (!user || profile?.role !== 'admin')) {
+        if (!loading && (!user || (user.app_metadata.role !== 'admin' && profile?.role !== 'admin'))) {
             console.warn('[AdminDashboard] Redirecting non-admin user:', user?.id)
             router.push('/login')
         }
     }, [user, profile, loading, router])
 
     if (loading) {
-        console.log('[AdminDashboard] Loading state')
         return (
             <div className="flex h-screen items-center justify-center">
-                <Loader size="lg" />
-                <span className="ml-2">Verifying admin privileges...</span>
+                <Loader className="h-8 w-8 animate-spin" />
+                <span className="ml-2">Loading dashboard...</span>
             </div>
         )
     }
 
-    if (!user || profile?.role !== 'admin') {
-        console.warn('[AdminDashboard] Blocked access attempt:', {
-            userId: user?.id,
-            profileRole: profile?.role
-        })
+    if (!user || (user.app_metadata.role !== 'admin' && profile?.role !== 'admin')) {
         return null
     }
 
