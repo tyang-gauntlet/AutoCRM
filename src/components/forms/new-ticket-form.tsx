@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { useAuth } from '@/hooks/use-auth'
+import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/hooks/use-toast'
 import {
     Select,
@@ -21,7 +21,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export default function NewTicketForm() {
     const router = useRouter()
-    const { user, loading: authLoading } = useAuth()
+    const { user } = useAuth()
     const { toast } = useToast()
     const [loading, setLoading] = useState(false)
     const supabase = createClientComponentClient<Database>()
@@ -77,7 +77,7 @@ export default function NewTicketForm() {
         }
     }
 
-    if (authLoading) {
+    if (!user) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>

@@ -1,17 +1,16 @@
 'use client'
 
 import * as React from 'react'
-import { useAuth } from '@/hooks/use-auth'
+import { useAuth } from '@/contexts/auth-context'
 import { useRole } from '@/hooks/use-role'
 import { Button } from '@/components/ui/button'
 import { LogOut, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuthContext } from '@/contexts/auth-context'
 
 export function Header() {
-    const { user, loading: authLoading } = useAuthContext()
+    const { user, loading: authLoading } = useAuth()
     const { role } = useRole()
     const { signOut } = useAuth()
     const router = useRouter()

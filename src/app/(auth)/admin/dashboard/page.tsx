@@ -20,10 +20,36 @@ import { useUserStats } from '@/hooks/use-user-stats'
 import { useTicketStats } from '@/hooks/use-ticket-stats'
 import { formatDistanceToNow } from 'date-fns'
 import { Badge } from "@/components/ui/badge"
+import { useAuth } from '@/contexts/auth-context'
+import { useRouter } from 'next/navigation'
 
 export default function AdminDashboard() {
+    const { user, profile, loading: authLoading } = useAuth()
+    const router = useRouter()
     const { stats: userStats, loading: userLoading } = useUserStats()
     const { stats: ticketStats, loading: ticketLoading } = useTicketStats()
+
+    console.log('🔷 Admin Dashboard: Auth state:', {
+        loading: authLoading,
+        user: !!user,
+        role: profile?.role
+    })
+
+    React.useEffect(() => {
+        console.log('🔷 Admin Dashboard: Checking auth...', {
+            authLoading,
+            user: !!user,
+            role: profile?.role
+        })
+        if (!authLoading && (!user || profile?.role !== 'admin')) {
+            console.log('🔷 Admin Dashboard: Redirecting to login')
+            router.push('/login')
+        }
+    }, [authLoading, user, profile, router])
+
+    if (authLoading || !user || profile?.role !== 'admin') {
+        return null
+    }
 
     const ticketStatsCards = [
         {

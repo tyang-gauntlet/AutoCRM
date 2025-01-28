@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { TicketList } from '@/components/tickets/ticket-list'
-import { useAuth } from '@/hooks/use-auth'
+import { useAuth } from '@/contexts/auth-context'
 import { Loader2 } from 'lucide-react'
 
 export default function TicketsPage() {

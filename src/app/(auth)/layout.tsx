@@ -1,35 +1,45 @@
 'use client'
 
+import { useAuth } from '@/contexts/auth-context'
 import { Header } from '@/components/layout/header'
-import { useAuth } from '@/hooks/use-auth'
+import { Loader2 } from 'lucide-react'
+import { Suspense } from 'react'
+
+function LoadingSpinner() {
+    return (
+        <div className="min-h-screen bg-background">
+            <div className="flex items-center justify-center h-screen">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        </div>
+    )
+}
+
+function AuthLayoutContent({ children }: { children: React.ReactNode }) {
+    const { loading } = useAuth()
+
+    if (loading) {
+        return <LoadingSpinner />
+    }
+
+    return (
+        <div className="min-h-screen bg-background">
+            <Header />
+            <main className="container mx-auto px-4 py-8">
+                {children}
+            </main>
+        </div>
+    )
+}
 
 export default function AuthLayout({
     children,
 }: {
     children: React.ReactNode
 }) {
-    const { loading } = useAuth()
-
-    // Only show loading state, but still render layout
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-background" data-testid="layout">
-                <Header />
-                <div className="flex items-center justify-center h-screen">
-                    <div role="status" aria-label="Loading">
-                        Loading...
-                    </div>
-                </div>
-            </div>
-        )
-    }
-
     return (
-        <div className="min-h-screen bg-background" data-testid="layout">
-            <Header />
-            <main className="">
-                {children}
-            </main>
-        </div>
+        <Suspense fallback={<LoadingSpinner />}>
+            <AuthLayoutContent>{children}</AuthLayoutContent>
+        </Suspense>
     )
 }

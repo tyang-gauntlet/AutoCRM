@@ -34,29 +34,53 @@ export type Database = {
   }
   public: {
     Tables: {
-      auth_sync: {
+      ai_metrics: {
         Row: {
-          email: string | null
+          created_at: string
+          created_by: string | null
           id: string
-          last_sign_in_at: string | null
-          role: string | null
-          updated_at: string | null
+          metadata: Json | null
+          score: number
+          ticket_id: string | null
+          trace_id: string
+          type: string
         }
         Insert: {
-          email?: string | null
-          id: string
-          last_sign_in_at?: string | null
-          role?: string | null
-          updated_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json | null
+          score: number
+          ticket_id?: string | null
+          trace_id: string
+          type: string
         }
         Update: {
-          email?: string | null
+          created_at?: string
+          created_by?: string | null
           id?: string
-          last_sign_in_at?: string | null
-          role?: string | null
-          updated_at?: string | null
+          metadata?: Json | null
+          score?: number
+          ticket_id?: string | null
+          trace_id?: string
+          type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ai_metrics_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_metrics_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customers: {
         Row: {
@@ -64,6 +88,7 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          metadata: Json | null
           name: string
           phone: string | null
           status: string | null
@@ -74,6 +99,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          metadata?: Json | null
           name: string
           phone?: string | null
           status?: string | null
@@ -84,6 +110,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          metadata?: Json | null
           name?: string
           phone?: string | null
           status?: string | null
@@ -130,85 +157,9 @@ export type Database = {
             referencedRelation: "customers"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      kb_article_chunks: {
-        Row: {
-          article_id: string | null
-          content: string
-          created_at: string | null
-          embedding: string | null
-          id: string
-          metadata: Json | null
-          updated_at: string | null
-        }
-        Insert: {
-          article_id?: string | null
-          content: string
-          created_at?: string | null
-          embedding?: string | null
-          id?: string
-          metadata?: Json | null
-          updated_at?: string | null
-        }
-        Update: {
-          article_id?: string | null
-          content?: string
-          created_at?: string | null
-          embedding?: string | null
-          id?: string
-          metadata?: Json | null
-          updated_at?: string | null
-        }
-        Relationships: [
           {
-            foreignKeyName: "kb_article_chunks_article_id_fkey"
-            columns: ["article_id"]
-            isOneToOne: false
-            referencedRelation: "kb_articles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      kb_article_versions: {
-        Row: {
-          article_id: string | null
-          changes: Json | null
-          content: string
-          created_at: string | null
-          created_by: string | null
-          id: string
-          version: number
-        }
-        Insert: {
-          article_id?: string | null
-          changes?: Json | null
-          content: string
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          version: number
-        }
-        Update: {
-          article_id?: string | null
-          changes?: Json | null
-          content?: string
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          version?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "kb_article_versions_article_id_fkey"
-            columns: ["article_id"]
-            isOneToOne: false
-            referencedRelation: "kb_articles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "kb_article_versions_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: "interactions_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -217,76 +168,55 @@ export type Database = {
       }
       kb_articles: {
         Row: {
-          approved_at: string | null
           approved_by: string | null
           category_id: string | null
-          chunk_embeddings: Json | null
           content: string
           content_format: string | null
           created_at: string
           created_by: string | null
-          embedding: string | null
           id: string
           metadata: Json | null
-          published_at: string | null
           search_vector: unknown | null
           slug: string
-          source_type: string | null
-          source_url: string | null
           status: string | null
           tags: string[] | null
           title: string
           updated_at: string
           updated_by: string | null
-          version: number | null
         }
         Insert: {
-          approved_at?: string | null
           approved_by?: string | null
           category_id?: string | null
-          chunk_embeddings?: Json | null
           content: string
           content_format?: string | null
           created_at?: string
           created_by?: string | null
-          embedding?: string | null
           id?: string
           metadata?: Json | null
-          published_at?: string | null
           search_vector?: unknown | null
           slug: string
-          source_type?: string | null
-          source_url?: string | null
           status?: string | null
           tags?: string[] | null
           title: string
           updated_at?: string
           updated_by?: string | null
-          version?: number | null
         }
         Update: {
-          approved_at?: string | null
           approved_by?: string | null
           category_id?: string | null
-          chunk_embeddings?: Json | null
           content?: string
           content_format?: string | null
           created_at?: string
           created_by?: string | null
-          embedding?: string | null
           id?: string
           metadata?: Json | null
-          published_at?: string | null
           search_vector?: unknown | null
           slug?: string
-          source_type?: string | null
-          source_url?: string | null
           status?: string | null
           tags?: string[] | null
           title?: string
           updated_at?: string
           updated_by?: string | null
-          version?: number | null
         }
         Relationships: [
           {
@@ -306,6 +236,13 @@ export type Database = {
           {
             foreignKeyName: "kb_articles_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kb_articles_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -352,27 +289,71 @@ export type Database = {
       }
       kb_tags: {
         Row: {
-          created_at: string | null
+          created_at: string
           description: string | null
           id: string
           name: string
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           description?: string | null
           id?: string
           name: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           description?: string | null
           id?: string
           name?: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Relationships: []
+      }
+      knowledge_retrieval_metrics: {
+        Row: {
+          accuracy: number
+          context_match: number
+          created_at: string
+          id: string
+          metric_id: string | null
+          query_text: string
+          relevance_score: number
+          relevant_chunks: Json
+          retrieved_chunks: Json
+        }
+        Insert: {
+          accuracy: number
+          context_match: number
+          created_at?: string
+          id?: string
+          metric_id?: string | null
+          query_text: string
+          relevance_score: number
+          relevant_chunks: Json
+          retrieved_chunks: Json
+        }
+        Update: {
+          accuracy?: number
+          context_match?: number
+          created_at?: string
+          id?: string
+          metric_id?: string | null
+          query_text?: string
+          relevance_score?: number
+          relevant_chunks?: Json
+          retrieved_chunks?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_retrieval_metrics_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "ai_metrics"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -381,7 +362,7 @@ export type Database = {
           full_name: string | null
           id: string
           last_sign_in_at: string | null
-          role: string
+          role: string | null
           status: string | null
           updated_at: string
         }
@@ -391,7 +372,7 @@ export type Database = {
           full_name?: string | null
           id: string
           last_sign_in_at?: string | null
-          role?: string
+          role?: string | null
           status?: string | null
           updated_at?: string
         }
@@ -401,36 +382,80 @@ export type Database = {
           full_name?: string | null
           id?: string
           last_sign_in_at?: string | null
-          role?: string
+          role?: string | null
           status?: string | null
           updated_at?: string
         }
         Relationships: []
       }
+      response_quality_metrics: {
+        Row: {
+          accuracy: number
+          created_at: string
+          human_rating: number | null
+          id: string
+          metric_id: string | null
+          overall_quality: number
+          relevance: number
+          response_text: string
+          tone: number
+        }
+        Insert: {
+          accuracy: number
+          created_at?: string
+          human_rating?: number | null
+          id?: string
+          metric_id?: string | null
+          overall_quality: number
+          relevance: number
+          response_text: string
+          tone: number
+        }
+        Update: {
+          accuracy?: number
+          created_at?: string
+          human_rating?: number | null
+          id?: string
+          metric_id?: string | null
+          overall_quality?: number
+          relevance?: number
+          response_text?: string
+          tone?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "response_quality_metrics_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "ai_metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_feedback: {
         Row: {
           comment: string | null
-          created_at: string | null
+          created_at: string
           id: string
           rating: number
           ticket_id: string
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
           comment?: string | null
-          created_at?: string | null
+          created_at?: string
           id?: string
           rating: number
           ticket_id: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
           comment?: string | null
-          created_at?: string | null
+          created_at?: string
           id?: string
           rating?: number
           ticket_id?: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -572,15 +597,6 @@ export type Database = {
             }
             Returns: unknown
           }
-      get_user_emails: {
-        Args: {
-          user_ids: string[]
-        }
-        Returns: {
-          id: string
-          email: string
-        }[]
-      }
       get_user_role: {
         Args: {
           user_id: string
@@ -665,6 +681,12 @@ export type Database = {
         }
         Returns: unknown
       }
+      is_admin: {
+        Args: {
+          user_id: string
+        }
+        Returns: boolean
+      }
       ivfflat_bit_support: {
         Args: {
           "": unknown
@@ -715,39 +737,6 @@ export type Database = {
             }
             Returns: unknown
           }
-      match_kb_chunks: {
-        Args: {
-          query_embedding: string
-          match_threshold: number
-          match_count: number
-        }
-        Returns: {
-          id: string
-          article_id: string
-          content: string
-          similarity: number
-        }[]
-      }
-      search_kb_articles: {
-        Args: {
-          search_query: string
-          category_slug?: string
-          limit_val?: number
-          offset_val?: number
-        }
-        Returns: {
-          id: string
-          title: string
-          slug: string
-          content: string
-          category_id: string
-          status: string
-          metadata: Json
-          created_at: string
-          updated_at: string
-          search_rank: number
-        }[]
-      }
       set_limit: {
         Args: {
           "": number
