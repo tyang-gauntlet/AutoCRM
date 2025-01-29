@@ -13,15 +13,15 @@ export const config = {
 }
 
 // Define public routes that don't require authentication
-const publicRoutes = new Set([
-    '/login',
-    '/signup',
-    '/forgot-password',
-    '/kb',
-    '/api/health'
-])
+const publicRoutes = new Set(['/login', '/signup', '/forgot-password', '/kb', '/api/health'])
 
 type UserRole = 'admin' | 'reviewer' | 'user'
+
+const dashboardPaths = {
+    admin: '/admin/dashboard',
+    reviewer: '/reviewer/dashboard',
+    user: '/user/dashboard'
+} as const
 
 // Then export the middleware function
 export async function middleware(req: NextRequest) {
@@ -124,12 +124,6 @@ export async function middleware(req: NextRequest) {
         // If has session and on login page
         if (session && path === '/login') {
             const userRole = session.user.app_metadata.role || 'user'
-            const dashboardPaths = {
-                admin: '/admin/dashboard',
-                reviewer: '/reviewer/dashboard',
-                user: '/user/dashboard'
-            } as const
-
             const redirectTo = dashboardPaths[userRole as UserRole] || '/user/dashboard'
             console.log('[Middleware] Redirecting to:', redirectTo)
             return NextResponse.redirect(new URL(redirectTo, req.url))
