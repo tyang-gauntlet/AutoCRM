@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
     MessageSquare,
@@ -29,7 +28,6 @@ import type { TicketWithDetails } from '@/types/tickets'
 import { ReviewerTicketView } from '@/components/tickets/reviewer-ticket-view'
 import { AssignedIndicator } from '@/components/tickets/assigned-indicator'
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 
 export default function ReviewerDashboard() {
     const { tickets, loading, assignTicket } = useReviewerTickets()
@@ -229,7 +227,7 @@ export default function ReviewerDashboard() {
                                             </Badge>
                                         </div>
                                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                            <span className="truncate">{ticket.customer?.email || 'Unknown'}</span>
+                                            <span className="truncate">{ticket.creator?.email || 'Unknown'}</span>
                                             <span>•</span>
                                             <span>{ticket.assigned_to ? 'Updated' : 'Created'} {new Date(ticket.updated_at || ticket.created_at).toLocaleDateString()}</span>
                                         </div>

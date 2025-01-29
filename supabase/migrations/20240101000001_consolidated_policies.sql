@@ -9,6 +9,8 @@ drop policy if exists "Only admins can delete interactions" on public.interactio
 drop policy if exists "Users can view tickets" on public.tickets;
 drop policy if exists "Users can create tickets" on public.tickets;
 drop policy if exists "Users can update tickets" on public.tickets;
+drop policy if exists "Reviewers can view all profiles" on public.profiles;
+drop policy if exists "Reviewers can view all customers" on public.customers;
 
 -- RLS Policies for profiles
 create policy "Users can view their own profile"
@@ -18,6 +20,10 @@ create policy "Users can view their own profile"
 create policy "Admins can view all profiles"
   on public.profiles for select
   using (is_admin(auth.uid()));
+
+create policy "Reviewers can view all profiles"
+  on public.profiles for select
+  using (get_user_role(auth.uid()) = 'reviewer');
 
 create policy "Users can update their own profile"
   on public.profiles for update
@@ -31,6 +37,11 @@ create policy "Users can update their own profile"
       end
     )
   );
+
+-- RLS Policies for customers
+create policy "Reviewers can view all customers"
+  on public.customers for select
+  using (get_user_role(auth.uid()) = 'reviewer');
 
 -- Enable realtime for tables that aren't already in the publication
 do $$

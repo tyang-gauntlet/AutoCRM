@@ -17,9 +17,9 @@ export default function AssignedTicketsPage() {
         status: ticket.status as TicketStatus,
         created_at: ticket.created_at,
         updated_at: ticket.updated_at,
-        customer: ticket.customer ? {
-            name: ticket.customer.name || undefined,
-            email: ticket.customer.email || undefined
+        customers: ticket.customers ? {
+            name: ticket.customers.name || undefined,
+            email: ticket.customers.email || undefined
         } : undefined,
         assigned: ticket.assigned ? {
             full_name: ticket.assigned.email || 'Unknown'
