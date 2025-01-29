@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import type { Database } from '@/types/database'
+import { supabase } from '@/lib/supabase'
 
 type RoleState = {
     role: string | null
@@ -14,7 +13,6 @@ export function useRole() {
         role: null,
         loading: true
     })
-    const supabase = createClientComponentClient<Database>()
 
     useEffect(() => {
         async function fetchRole() {
@@ -27,12 +25,11 @@ export function useRole() {
 
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('role')
+                    .select('*')
                     .eq('id', session.user.id)
-                    .single()
 
                 setState({
-                    role: profile?.role || null,
+                    role: profile?.[0]?.role || null,
                     loading: false
                 })
             } catch (error) {

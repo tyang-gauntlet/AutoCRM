@@ -36,13 +36,6 @@ export default function ReviewerDashboard() {
     const [selectedTickets, setSelectedTickets] = React.useState<string[]>([])
     const [selectedTicketId, setSelectedTicketId] = React.useState<string | null>(null)
 
-    console.log('[ReviewerDashboard] Render:', {
-        hasTickets: !!tickets?.length,
-        ticketCount: tickets?.length,
-        loading,
-        activeTab
-    })
-
     // Get ticket details for the selected ticket
     const { ticket: selectedTicket, messages, sendMessage, updateStatus, updatePriority } = useTicketDetails(
         selectedTicketId || undefined,
@@ -227,7 +220,7 @@ export default function ReviewerDashboard() {
                                             </Badge>
                                         </div>
                                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                            <span className="truncate">{ticket.creator?.email || 'Unknown'}</span>
+                                            <span className="truncate">{ticket.customers?.name || 'Unknown'}</span>
                                             <span>•</span>
                                             <span>{ticket.assigned_to ? 'Updated' : 'Created'} {new Date(ticket.updated_at || ticket.created_at).toLocaleDateString()}</span>
                                         </div>

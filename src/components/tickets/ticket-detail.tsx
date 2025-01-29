@@ -40,14 +40,20 @@ export function TicketDetail({
             {/* Messages */}
             <Card className="flex flex-col h-[calc(100vh-20rem)]">
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {messages.map((message) => (
-                        <TicketMessageComponent
-                            key={message.id}
-                            sender={message.sender}
-                            content={message.content}
-                            created_at={message.created_at}
-                        />
-                    ))}
+                    {messages.length === 0 ? (
+                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                            No messages yet. Start the conversation by sending a message below.
+                        </div>
+                    ) : (
+                        messages.map((message) => (
+                            <TicketMessageComponent
+                                key={message.id}
+                                sender={message.sender}
+                                content={message.content}
+                                created_at={message.created_at}
+                            />
+                        ))
+                    )}
                     <div ref={messagesEndRef} />
                 </div>
 

@@ -25,6 +25,10 @@ create policy "Reviewers can view all profiles"
   on public.profiles for select
   using (get_user_role(auth.uid()) = 'reviewer');
 
+create policy "Authenticated users can view all profiles"
+  on public.profiles for select
+  using (auth.role() = 'authenticated');
+
 create policy "Users can update their own profile"
   on public.profiles for update
   using (auth.uid() = id)

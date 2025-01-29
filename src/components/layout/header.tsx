@@ -56,7 +56,6 @@ export function Header() {
     }
 
     if (!user) return null
-
     const displayRole = role ? role.charAt(0).toUpperCase() + role.slice(1) : 'User'
 
     return (
