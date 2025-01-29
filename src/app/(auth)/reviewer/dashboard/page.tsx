@@ -38,6 +38,13 @@ export default function ReviewerDashboard() {
     const [selectedTickets, setSelectedTickets] = React.useState<string[]>([])
     const [selectedTicketId, setSelectedTicketId] = React.useState<string | null>(null)
 
+    console.log('[ReviewerDashboard] Render:', {
+        hasTickets: !!tickets?.length,
+        ticketCount: tickets?.length,
+        loading,
+        activeTab
+    })
+
     // Get ticket details for the selected ticket
     const { ticket: selectedTicket, messages, sendMessage, updateStatus, updatePriority } = useTicketDetails(
         selectedTicketId || undefined,

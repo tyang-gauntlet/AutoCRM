@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/types/database'
+import { useAuth } from '@/contexts/auth-context'
 
 export type Ticket = Database['public']['Tables']['tickets']['Row'] & {
     customer: Pick<Database['public']['Tables']['customers']['Row'], 'name' | 'email'> | null
@@ -23,10 +24,28 @@ export function useReviewerTickets() {
     const [tickets, setTickets] = useState<Ticket[]>([])
     const [loading, setLoading] = useState(true)
     const supabase = createClientComponentClient<Database>()
+    const { user, profile } = useAuth()  // Get auth context
 
     useEffect(() => {
+        // Don't fetch if we don't have user or profile yet
+        if (!user || !profile) {
+            console.log('[useReviewerTickets] Waiting for auth...', {
+                hasUser: !!user,
+                hasProfile: !!profile
+            })
+            return
+        }
+
+        // Verify reviewer role
+        if (profile.role !== 'reviewer') {
+            console.error('[useReviewerTickets] User is not a reviewer:', profile.role)
+            return
+        }
+
         async function fetchTickets() {
             try {
+                console.log('[useReviewerTickets] Fetching tickets...')
+
                 const { data: ticketsData, error: ticketsError } = await supabase
                     .from('tickets')
                     .select(`
@@ -41,7 +60,15 @@ export function useReviewerTickets() {
                     `)
                     .order('created_at', { ascending: false })
 
-                if (ticketsError) throw ticketsError
+                if (ticketsError) {
+                    console.error('[useReviewerTickets] Error fetching tickets:', ticketsError)
+                    throw ticketsError
+                }
+
+                console.log('[useReviewerTickets] Tickets fetched:', {
+                    count: ticketsData?.length,
+                    firstTicket: ticketsData?.[0]
+                })
 
                 // Get unique creator IDs
                 const creatorIds = Array.from(
@@ -75,28 +102,56 @@ export function useReviewerTickets() {
 
                 setTickets(transformedTickets)
             } catch (error) {
-                console.error('Error fetching tickets:', error)
+                console.error('[useReviewerTickets] Error:', error)
             } finally {
                 setLoading(false)
             }
         }
 
         fetchTickets()
-    }, [supabase])
+
+        // Set up realtime subscription
+        const channel = supabase
+            .channel('tickets')
+            .on('postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'tickets'
+                },
+                () => fetchTickets()
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
+    }, [supabase, user, profile]) // Add user and profile as dependencies
 
     const assignTicket = async (ticketId: string) => {
         try {
             const { data: { session } } = await supabase.auth.getSession()
-            if (!session?.user) return false
+            if (!session?.user) {
+                console.error('[useReviewerTickets] No session for assign')
+                return false
+            }
 
             const { error } = await supabase
                 .from('tickets')
-                .update({ assigned_to: session.user.id })
+                .update({
+                    assigned_to: session.user.id,
+                    status: 'in_progress'  // Update status when assigned
+                })
                 .eq('id', ticketId)
 
-            return !error
+            if (error) {
+                console.error('[useReviewerTickets] Error assigning ticket:', error)
+                return false
+            }
+
+            return true
         } catch (error) {
-            console.error('Error assigning ticket:', error)
+            console.error('[useReviewerTickets] Error:', error)
             return false
         }
     }

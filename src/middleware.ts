@@ -63,10 +63,7 @@ export async function middleware(req: NextRequest) {
                                     name,
                                     value,
                                     ...options,
-                                    path: '/',
-                                    sameSite: 'lax',
-                                    secure: process.env.NODE_ENV === 'production',
-                                    httpOnly: true
+                                    path: '/'
                                 })
                             },
                             remove(name: string, options: any) {
@@ -76,17 +73,6 @@ export async function middleware(req: NextRequest) {
                                     path: '/'
                                 })
                             },
-                            getAll() {
-                                return req.cookies.getAll().reduce((cookies: Record<string, string>, cookie) => {
-                                    cookies[cookie.name] = cookie.value
-                                    return cookies
-                                }, {})
-                            },
-                            setAll(cookieStrings: string[]) {
-                                cookieStrings.map(cookieString => {
-                                    res.headers.append('Set-Cookie', cookieString)
-                                })
-                            }
                         }
                     }
                 )

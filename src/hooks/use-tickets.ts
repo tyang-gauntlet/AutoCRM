@@ -13,35 +13,55 @@ export function useTickets(priorityFilter?: string) {
 
     useEffect(() => {
         const fetchTickets = async () => {
-            if (!supabase) {
-                throw new Error('Supabase client not initialized')
-            }
-            const { data: { session } } = await supabase.auth.getSession()
-            console.log("FETCHING TICKETS", session)
-            if (!session) return
-            let query = supabase
-                .from('tickets')
-                .select(`
-                    *,
-                    customer:customers(name),
-                    assigned:profiles!tickets_assigned_to_fkey(full_name)
-                `)
-                .order('created_at', { ascending: false })
+            try {
+                if (!supabase) {
+                    throw new Error('Supabase client not initialized')
+                }
 
-            // If priority filter is provided, apply it
-            if (priorityFilter) {
-                const priorities = priorityFilter.split(',')
-                query = query.in('priority', priorities)
-            }
-            console.log(query)
-            const { data, error } = await query
+                const { data: { session } } = await supabase.auth.getSession()
+                if (!session) {
+                    console.error('No active session')
+                    setLoading(false)
+                    return
+                }
 
-            if (!error && data) {
+                console.log('Fetching tickets for user:', session.user.id)
+
+                let query = supabase
+                    .from('tickets')
+                    .select(`
+                        *,
+                        customer:customers(name),
+                        assigned:profiles!tickets_assigned_to_fkey(full_name)
+                    `, { count: 'exact' })
+                    .order('created_at', { ascending: false })
+
+                if (priorityFilter) {
+                    const priorities = priorityFilter.split(',')
+                    query = query.in('priority', priorities)
+                }
+
+                const { data, error, count } = await query
+
+                if (error) {
+                    console.error('Error fetching tickets:', error.message, error.details)
+                    setLoading(false)
+                    return
+                }
+
+                console.log('Tickets query result:', {
+                    count,
+                    dataLength: data?.length,
+                    firstTicket: data?.[0],
+                    userId: session.user.id
+                })
+
                 setTickets(data as unknown as Ticket[])
-            } else {
-                console.error('Error fetching tickets:', error)
+            } catch (err) {
+                console.error('Unexpected error fetching tickets:', err)
+            } finally {
+                setLoading(false)
             }
-            setLoading(false)
         }
 
         fetchTickets()
@@ -67,7 +87,7 @@ export function useTickets(priorityFilter?: string) {
             }
             supabase.removeChannel(channel)
         }
-    }, [supabase, priorityFilter])
+    }, [priorityFilter])
 
     return { tickets, loading }
 } 

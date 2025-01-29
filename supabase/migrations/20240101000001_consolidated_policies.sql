@@ -6,6 +6,9 @@ drop policy if exists "Authenticated users can view interactions" on public.inte
 drop policy if exists "Authenticated users can insert interactions" on public.interactions;
 drop policy if exists "Authenticated users can update interactions" on public.interactions;
 drop policy if exists "Only admins can delete interactions" on public.interactions;
+drop policy if exists "Users can view tickets" on public.tickets;
+drop policy if exists "Users can create tickets" on public.tickets;
+drop policy if exists "Users can update tickets" on public.tickets;
 
 -- RLS Policies for profiles
 create policy "Users can view their own profile"
@@ -84,4 +87,40 @@ create policy "Authenticated users can update interactions"
 
 create policy "Only admins can delete interactions"
   on public.interactions for delete
-  using (is_admin(auth.uid())); 
+  using (is_admin(auth.uid()));
+
+-- Create policies for tickets
+create policy "Users can view tickets"
+  on public.tickets for select
+  using (
+    -- Reviewers can see all tickets
+    exists (
+      select 1 from profiles
+      where profiles.id = auth.uid()
+      and profiles.role = 'reviewer'
+    )
+    OR
+    -- Users can only see tickets they created
+    created_by = auth.uid()
+  );
+
+create policy "Users can create tickets"
+  on public.tickets for insert
+  with check (
+    -- Users can only create tickets with themselves as creator
+    created_by = auth.uid()
+  );
+
+create policy "Users can update tickets"
+  on public.tickets for update
+  using (
+    -- Reviewers can update any ticket
+    exists (
+      select 1 from profiles
+      where profiles.id = auth.uid()
+      and profiles.role = 'reviewer'
+    )
+    OR
+    -- Users can only update their own tickets
+    created_by = auth.uid()
+  ); 

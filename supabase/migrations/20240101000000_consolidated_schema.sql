@@ -36,11 +36,12 @@ begin
   
   assigned_role := case 
     when user_count = 0 then 'admin'  -- First user becomes admin
-    when NEW.raw_app_meta_data->>'role' = 'admin' then 'admin'
     when NEW.email = 'admin@example.com' then 'admin'
-    else 'user'
+    when NEW.email = 'reviewer@example.com' then 'reviewer'
+    else coalesce(NEW.raw_app_meta_data->>'role', 'user')
   end;
 
+  -- Insert or update profile
   insert into public.profiles (id, email, role, full_name)
   values (
     NEW.id,
@@ -51,18 +52,14 @@ begin
   on conflict (id) do update
   set 
     email = EXCLUDED.email,
-    role = case 
-      when EXCLUDED.email = 'admin@example.com' then 'admin'
-      else coalesce(EXCLUDED.role, profiles.role)
-    end,
+    role = assigned_role,
     full_name = EXCLUDED.full_name;
 
-  update auth.users
-  set raw_app_meta_data = 
-    coalesce(raw_app_meta_data, '{}'::jsonb) || 
-    jsonb_build_object('role', assigned_role)
-  where id = NEW.id;
-  
+  -- Ensure auth metadata matches profile role
+  NEW.raw_app_meta_data = 
+    coalesce(NEW.raw_app_meta_data, '{}'::jsonb) || 
+    jsonb_build_object('role', assigned_role);
+
   return NEW;
 end;
 $$ language plpgsql security definer;
@@ -253,4 +250,21 @@ alter table public.ai_metrics enable row level security;
 alter table public.kb_embeddings enable row level security;
 alter table public.interactions enable row level security;
 
--- Add RLS policies (continued in next migration) 
+-- Add RLS policies (continued in next migration)
+
+-- Function to sync roles between profiles and auth
+create or replace function sync_user_roles()
+returns void as $$
+begin
+  -- Update auth metadata to match profile roles
+  update auth.users u
+  set raw_app_meta_data = 
+    coalesce(raw_app_meta_data, '{}'::jsonb) || 
+    jsonb_build_object('role', p.role)
+  from public.profiles p
+  where u.id = p.id;
+end;
+$$ language plpgsql security definer;
+
+-- Run the sync immediately
+select sync_user_roles(); 

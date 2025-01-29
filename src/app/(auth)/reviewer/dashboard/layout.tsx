@@ -11,14 +11,21 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
     const { loading, user, profile } = useAuth()
 
+    console.log('[ReviewerDashboard Layout] Initial render:', {
+        loading,
+        hasUser: !!user,
+        hasProfile: !!profile,
+        profileRole: profile?.role
+    })
+
     useEffect(() => {
-        console.log('[Reviewer Dashboard] Auth State:', {
+        console.log('[ReviewerDashboard Layout] Auth State:', {
             loading,
             userExists: !!user,
             userId: user?.id,
             userEmail: user?.email,
             profileExists: !!profile,
-            profileId: profile?.id,
+            profileRole: profile?.role,
             timestamp: new Date().toISOString(),
         })
     }, [loading, user, profile])
@@ -34,9 +41,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         )
     }
 
-    if (!user) {
-        console.log('[Reviewer Dashboard] No user found', {
-            timestamp: new Date().toISOString(),
+    if (!user || profile?.role !== 'reviewer') {
+        console.log('[ReviewerDashboard Layout] Access denied:', {
+            hasUser: !!user,
+            profileRole: profile?.role
         })
         return null
     }

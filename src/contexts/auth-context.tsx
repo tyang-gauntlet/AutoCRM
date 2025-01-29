@@ -30,7 +30,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [profile, setProfile] = useState<Database['public']['Tables']['profiles']['Row'] | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [initialized, setInitialized] = useState(false)
 
     const fetchProfile = async (userId: string) => {
         try {
@@ -43,23 +42,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (error) {
                 console.error('[AuthContext] Profile fetch error:', error)
-                if (error.code === 'PGRST116') {
-                    console.log('[AuthContext] Creating new profile for:', userId)
-                    const { data: newProfile, error: createError } = await supabase
-                        .from('profiles')
-                        .insert([{ id: userId, role: 'user' }])
-                        .select()
-                        .single()
-
-                    if (createError) throw createError
-                    return newProfile
-                }
                 throw error
             }
-            console.log('[AuthContext] Profile fetched:', profile)
+
+            console.log('[AuthContext] Profile fetched successfully:', profile)
+            setProfile(profile)
             return profile
         } catch (error) {
             console.error('[AuthContext] Profile error:', error)
+            setError(error instanceof Error ? error.message : 'Failed to fetch profile')
             return null
         }
     }
@@ -72,24 +63,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 console.log('[AuthContext] Getting initial session...')
                 const { data: { session }, error } = await supabase.auth.getSession()
 
-                console.log('[AuthContext] Initial session:', {
-                    hasSession: !!session,
-                    userId: session?.user?.id,
-                    userRole: session?.user?.app_metadata?.role,
-                    accessToken: session?.access_token?.slice(-10)
-                })
+                if (error) throw error
 
                 if (session?.user) {
                     setUser(session.user)
                     const profile = await fetchProfile(session.user.id)
-                    setProfile(profile)
+                    if (!profile) {
+                        throw new Error('Failed to fetch profile')
+                    }
                 }
             } catch (error) {
                 console.error('[AuthContext] Init error:', error)
                 setError(error instanceof Error ? error.message : 'Auth failed')
             } finally {
                 setLoading(false)
-                setInitialized(true)
             }
         }
 
@@ -107,7 +94,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (session?.user) {
                     setUser(session.user)
                     const profile = await fetchProfile(session.user.id)
-                    setProfile(profile)
+                    if (!profile) {
+                        console.error('[AuthContext] Failed to fetch profile after auth change')
+                    }
                 } else {
                     setUser(null)
                     setProfile(null)
@@ -122,22 +111,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [])
 
-    // Log state changes
-    useEffect(() => {
-        console.log('[AuthContext] State updated:', {
-            hasUser: !!user,
-            userId: user?.id,
-            userRole: user?.app_metadata?.role,
-            hasProfile: !!profile,
-            profileRole: profile?.role,
-            loading,
-            error
-        })
-    }, [user, profile, loading, error])
-
-    // Don't render until fully initialized
-    if (!initialized) {
-        return null
+    // Don't render until we have both user and profile
+    if (loading || (user && !profile)) {
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+            </div>
+        )
     }
 
     const signIn = async (email: string, password: string) => {
@@ -218,7 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         <AuthContext.Provider value={{
             user,
             profile,
-            loading,
+            loading: loading || (!!user && !profile), // Consider still loading if we have user but no profile
             error,
             signIn,
             signOut,

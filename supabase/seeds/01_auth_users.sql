@@ -63,7 +63,10 @@ VALUES
   (
     'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
     'reviewer@example.com',
-    jsonb_build_object('full_name', 'Ticket Reviewer'),
+    jsonb_build_object(
+      'full_name', 'Ticket Reviewer',
+      'role', 'reviewer'
+    ),
     jsonb_build_object('role', 'reviewer'),
     now(),
     now(),
