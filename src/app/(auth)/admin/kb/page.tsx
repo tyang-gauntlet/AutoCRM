@@ -44,7 +44,7 @@ export default function KBManagementPage() {
             const data = await getArticles({
                 search: searchQuery || undefined
             })
-            setArticles(data || [])
+            setArticles(data as KBArticle[])
         } catch (error) {
             toast({
                 title: 'Error',

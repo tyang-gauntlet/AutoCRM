@@ -38,7 +38,7 @@ export function ArticleList({ filter, onEdit, onDelete }: ArticleListProps) {
                 status: filter?.status,
                 category: filter?.category
             })
-            setArticles(data || [])
+            setArticles(data as KBArticle[])
         } catch (error) {
             toast({
                 title: 'Error',

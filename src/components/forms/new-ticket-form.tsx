@@ -16,15 +16,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import type { Database } from '@/types/database'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase'
 
 export default function NewTicketForm() {
     const router = useRouter()
     const { user } = useAuth()
     const { toast } = useToast()
     const [loading, setLoading] = useState(false)
-    const supabase = createClientComponentClient<Database>()
     const [formData, setFormData] = useState({
         title: '',
         description: '',

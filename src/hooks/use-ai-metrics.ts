@@ -1,16 +1,15 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase'
 import { AIMetric, MetricsResponse } from '@/types/ai/metrics'
+
 
 export function useAIMetrics(ticketId?: string) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [kraMetrics, setKraMetrics] = useState<MetricsResponse['data']>()
     const [rgqsMetrics, setRgqsMetrics] = useState<MetricsResponse['data']>()
-
-    const supabase = createClientComponentClient()
 
     // Fetch metrics for both types
     const fetchMetrics = useCallback(async () => {

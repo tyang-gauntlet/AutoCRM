@@ -4,7 +4,6 @@
     "specifiers": {
       "npm:@langchain/core@0.1.48": "npm:@langchain/core@0.1.48_zod@3.24.1",
       "npm:@langchain/openai@0.3.0": "npm:@langchain/openai@0.3.0_@langchain+core@0.3.36__openai@4.80.1___zod@3.24.1__zod@3.24.1_zod@3.24.1_openai@4.80.1__zod@3.24.1",
-      "npm:@pinecone-database/pinecone": "npm:@pinecone-database/pinecone@4.1.0"
     },
     "npm": {
       "@cfworker/json-schema@4.1.0": {

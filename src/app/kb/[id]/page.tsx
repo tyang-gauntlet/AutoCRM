@@ -1,9 +1,9 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { supabase } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import { ArticlePreview } from '@/components/kb/article-preview'
 import { Metadata } from 'next'
 import { formatDistanceToNow } from 'date-fns'
+import { KBArticle } from '@/types/kb'
 
 interface PageProps {
     params: {
@@ -12,7 +12,6 @@ interface PageProps {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-    const supabase = createServerComponentClient({ cookies })
 
     const { data: article } = await supabase
         .from('kb_articles')
@@ -40,7 +39,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ArticlePage({ params }: PageProps) {
-    const supabase = createServerComponentClient({ cookies })
 
     const { data: article } = await supabase
         .from('kb_articles')
@@ -59,7 +57,7 @@ export default async function ArticlePage({ params }: PageProps) {
 
     return (
         <div className="container max-w-4xl mx-auto py-10">
-            <ArticlePreview article={article} />
+            <ArticlePreview article={article as KBArticle} />
 
             <div className="border-t mt-8 pt-4">
                 <div className="text-sm text-muted-foreground">

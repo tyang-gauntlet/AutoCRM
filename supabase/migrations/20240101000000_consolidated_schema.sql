@@ -196,6 +196,7 @@ create table public.kb_embeddings (
     article_id uuid references public.kb_articles(id) on delete cascade,
     content text not null,
     embedding vector(1536) not null,
+    metadata jsonb default '{}'::jsonb,
     created_at timestamptz default timezone('utc'::text, now()) not null
 );
 
@@ -267,4 +268,6 @@ end;
 $$ language plpgsql security definer;
 
 -- Run the sync immediately
-select sync_user_roles(); 
+select sync_user_roles();
+
+-- Remove duplicate RLS enabling section 

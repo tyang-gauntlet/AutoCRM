@@ -1,7 +1,8 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { Client } from 'langsmith'
+
 
 const langsmith = new Client({
     apiUrl: process.env.LANGSMITH_API_URL,
@@ -10,8 +11,8 @@ const langsmith = new Client({
 
 export async function POST(request: Request) {
     try {
-        const supabase = createRouteHandlerClient({ cookies })
         const { data: { session } } = await supabase.auth.getSession()
+
 
         if (!session) {
             return NextResponse.json(
@@ -53,16 +54,18 @@ export async function POST(request: Request) {
         // Insert detailed metrics
         if (type === 'kra') {
             await supabase
-                .from('knowledge_retrieval_metrics')
+                .from('ai_metrics')
                 .insert({
                     metric_id: metricData.id,
                     ...metrics
                 })
+
         } else {
             await supabase
-                .from('response_quality_metrics')
+                .from('ai_metrics')
                 .insert({
                     metric_id: metricData.id,
+
                     ...metrics
                 })
         }
@@ -92,18 +95,19 @@ export async function GET(request: Request) {
             )
         }
 
-        const supabase = createRouteHandlerClient({ cookies })
+        // TODO: Add RPC call to get average metrics
+        // const { data, error } = await supabase
 
-        const { data, error } = await supabase
-            .rpc('get_average_metrics', {
-                p_ticket_id: ticket_id,
-                p_type: type,
-                p_timeframe: timeframe
-            })
+        //     .rpc('get_average_metrics', {
+        //         p_ticket_id: ticket_id,
+        //         p_type: type,
+        //         p_timeframe: timeframe
+        //     })
 
-        if (error) throw error
+        // if (error) throw error
 
-        return NextResponse.json({ success: true, data })
+        return NextResponse.json({ success: true, data: [] })
+
 
     } catch (error) {
         console.error('Error fetching metrics:', error)

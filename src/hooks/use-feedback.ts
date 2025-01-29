@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase'
 import { Database } from '@/types/database'
 import { toast } from 'sonner'
+
 
 type TicketFeedback = Database['public']['Tables']['ticket_feedback']['Row'] & {
     tickets: {
@@ -24,7 +25,7 @@ export function useFeedback() {
     const [feedback, setFeedback] = useState<TicketFeedback[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const supabase = useMemo(() => createClientComponentClient<Database>(), [])
+
 
     const fetchFeedback = useCallback(async () => {
         try {

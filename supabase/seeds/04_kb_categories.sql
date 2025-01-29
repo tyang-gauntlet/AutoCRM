@@ -1,10 +1,14 @@
--- Seed knowledge base categories
+-- Insert initial categories
 INSERT INTO public.kb_categories (name, slug, description)
 VALUES
-  ('Getting Started', 'getting-started', 'Essential guides and tutorials to help you get up and running with AutoCRM. Perfect for new users.'),
-  ('Account Management', 'account', 'Learn how to manage your account settings, security, and user preferences effectively.'),
-  ('Troubleshooting', 'troubleshooting', 'Solutions to common issues, error messages, and technical problems you might encounter.'),
-  ('Best Practices', 'best-practices', 'Expert tips, recommendations, and industry standards for optimal usage of AutoCRM.'),
-  ('API Documentation', 'api', 'Comprehensive technical documentation for API integration, including examples and use cases.'),
-  ('Security & Privacy', 'security', 'Important information about security features, data protection, and privacy settings.'),
-  ('Integrations', 'integrations', 'Guides for connecting AutoCRM with other tools and services in your workflow.'); 
+    ('Getting Started', 'getting-started', 'Basic introduction and setup guides'),
+    ('Features', 'features', 'Detailed feature documentation'),
+    ('Troubleshooting', 'troubleshooting', 'Common issues and solutions'),
+    ('Best Practices', 'best-practices', 'Recommended usage and tips'),
+    ('API Documentation', 'api', 'API reference and examples'),
+    ('Security', 'security', 'Security guidelines and practices'),
+    ('Updates', 'updates', 'Product updates and changelogs')
+ON CONFLICT (slug) DO UPDATE
+SET 
+    name = EXCLUDED.name,
+    description = EXCLUDED.description; 

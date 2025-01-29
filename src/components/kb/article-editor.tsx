@@ -27,7 +27,7 @@ export function ArticleEditor({ article, onSave, onCancel }: ArticleEditorProps)
     const [formData, setFormData] = useState<CreateArticleRequest>({
         title: (article as any)?.title ?? '',
         content: (article as any)?.content ?? '',
-        category_id: article?.category?.id,
+        category_id: (article as any)?.category?.id,
         source_type: 'manual'
     })
     const [preview, setPreview] = useState('')

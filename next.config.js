@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,
-    swcMinify: true,
     // Ensure proper transpilation
     transpilePackages: [
         '@supabase/auth-helpers-nextjs',
@@ -16,7 +15,7 @@ const nextConfig = {
                 hostname: '**',
             },
         ],
-    },
+    }
 }
 
 module.exports = nextConfig 

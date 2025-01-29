@@ -11,6 +11,12 @@ drop policy if exists "Users can create tickets" on public.tickets;
 drop policy if exists "Users can update tickets" on public.tickets;
 drop policy if exists "Reviewers can view all profiles" on public.profiles;
 drop policy if exists "Reviewers can view all customers" on public.customers;
+drop policy if exists "Anyone can view categories" on public.kb_categories;
+drop policy if exists "Only admins can modify categories" on public.kb_categories;
+drop policy if exists "Anyone can view articles" on public.kb_articles;
+drop policy if exists "Only admins can modify articles" on public.kb_articles;
+drop policy if exists "Anyone can view embeddings" on public.kb_embeddings;
+drop policy if exists "Only admins can modify embeddings" on public.kb_embeddings;
 
 -- RLS Policies for profiles
 create policy "Users can view their own profile"
@@ -138,4 +144,49 @@ create policy "Users can update tickets"
     OR
     -- Users can only update their own tickets
     created_by = auth.uid()
-  ); 
+  );
+
+-- Knowledge base policies
+create policy "Anyone can view categories"
+  on public.kb_categories for select
+  using (true);
+
+create policy "Only admins can modify categories"
+  on public.kb_categories for all
+  using (is_admin(auth.uid()));
+
+-- Knowledge base article policies
+create policy "Anyone can view articles"
+  on public.kb_articles for select
+  using (true);
+
+create policy "Only admins can modify articles"
+  on public.kb_articles for all
+  using (is_admin(auth.uid()));
+
+-- Knowledge base embeddings policies
+create policy "Anyone can view embeddings"
+  on public.kb_embeddings for select
+  using (true);
+
+create policy "Only admins can insert embeddings"
+  on public.kb_embeddings for insert
+  with check (
+    exists (
+      select 1 from public.kb_articles a
+      where a.id = article_id
+      and exists (
+        select 1 from public.profiles p
+        where p.id = auth.uid()
+        and p.role = 'admin'
+      )
+    )
+  );
+
+create policy "Only admins can update embeddings"
+  on public.kb_embeddings for update
+  using (is_admin(auth.uid()));
+
+create policy "Only admins can delete embeddings"
+  on public.kb_embeddings for delete
+  using (is_admin(auth.uid())); 

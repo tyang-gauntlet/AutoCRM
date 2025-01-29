@@ -45,7 +45,7 @@ export default function AdminDashboard() {
             console.warn('[AdminDashboard] Redirecting non-admin user:', user?.id)
             router.push('/login')
         }
-    }, [user, profile, loading, router])
+    }, [user, profile, loading, router, error])
 
     if (loading) {
         return (

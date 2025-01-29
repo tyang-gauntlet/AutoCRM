@@ -7,8 +7,9 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
-import { Loader2, Plus, Save, Trash2 } from 'lucide-react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { Loader2, Plus, Trash2 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+
 
 interface CategoryManagerProps {
     onCategoryChange?: (category: KBCategory) => void
@@ -19,7 +20,6 @@ export function CategoryManager({ onCategoryChange }: CategoryManagerProps) {
     const [newCategory, setNewCategory] = useState({ name: '', slug: '' })
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
-    const supabase = createClientComponentClient()
 
     useEffect(() => {
         loadCategories()

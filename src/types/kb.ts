@@ -2,28 +2,32 @@ import { Database } from './database'
 
 type BaseKBArticle = Database['public']['Tables']['kb_articles']['Row']
 
-export type KBArticle = BaseKBArticle & {
+interface User {
+    id: string
+    full_name: string | null
+}
+
+export interface KBArticle {
+    id: string
+    title: string
+    content: string
+    slug: string | null
+    status: ArticleStatus | null
+    tags: string[]
+    created_at: string
+    updated_at: string
+    created_by: User | null
+    approved_by: User | null
+    approver: User | null
+    category_id: string | null
     category?: {
         id: string
         name: string
     }
-    creator?: {
-        id: string
-        full_name: string | null
-    }
-    approver?: {
-        id: string
-        full_name: string | null
-    }
-    created_by?: {
-        id: string
-        full_name: string | null
-    }
-    approved_by?: {
-        id: string
-        full_name: string | null
-    }
-    tags?: string[]
+    creator?: User
+    content_format: string | null
+    metadata: any
+    version: number | null
 }
 
 export type KBCategory = Database['public']['Tables']['kb_categories']['Row']

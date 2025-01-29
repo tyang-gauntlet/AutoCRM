@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase'
 import type { Database } from '@/types/database'
 
 type UserRole = 'admin' | 'user' | 'reviewer'
@@ -11,7 +11,6 @@ export function useUsers() {
     const [users, setUsers] = useState<Profile[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const supabase = createClientComponentClient<Database>()
 
     const fetchUsers = async () => {
         try {

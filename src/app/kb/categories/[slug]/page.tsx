@@ -1,10 +1,9 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import React from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, BookOpen } from 'lucide-react'
+
 import Link from 'next/link'
 import { unified } from 'unified'
 import remarkParse from 'remark-parse'
@@ -12,7 +11,7 @@ import remarkGfm from 'remark-gfm'
 import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
 import { cn } from '@/lib/utils'
-
+import { supabase } from '@/lib/supabase'
 interface Category {
     id: string
     name: string
@@ -54,7 +53,7 @@ async function generatePreviewHtml(content: string) {
 }
 
 export default async function CategoryPage({ params }: PageProps) {
-    const supabase = createServerComponentClient({ cookies })
+
 
     // Get category
     const { data: category, error: categoryError } = await supabase

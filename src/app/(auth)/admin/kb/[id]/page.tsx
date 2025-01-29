@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useKB } from '@/hooks/use-kb'
-import { KBArticle, CreateArticleRequest } from '@/types/kb'
+import { KBArticle } from '@/types/kb'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -40,8 +40,18 @@ const AVAILABLE_TAGS = [
     'faq'
 ]
 
-export default function ArticleEditorPage({ params }: { params: { id: string } }) {
-    const { loading, getArticle, updateArticle } = useKB()
+type KBParams = {
+    id: string
+}
+
+interface Props {
+    params: KBParams
+    searchParams?: { [key: string]: string | string[] | undefined }
+}
+
+export default function KBArticlePage({ params }: Props) {
+    const { id } = params
+    const { getArticle } = useKB()
     const { toast } = useToast()
     const [article, setArticle] = useState<KBArticle | null>(null)
     const [openTags, setOpenTags] = useState(false)
@@ -49,10 +59,10 @@ export default function ArticleEditorPage({ params }: { params: { id: string } }
     const [preview, setPreview] = useState('')
 
     useEffect(() => {
-        if (params.id !== 'new') {
+        if (id !== 'new') {
             loadArticle()
         }
-    }, [params.id])
+    }, [id])
 
     useEffect(() => {
         updatePreview((article as any)?.content || '')
@@ -74,9 +84,11 @@ export default function ArticleEditorPage({ params }: { params: { id: string } }
 
     const loadArticle = async () => {
         try {
-            const data = await getArticle(params.id)
-            setArticle(data)
-            setSelectedTags(data.tags || [])
+            const data = await getArticle(id)
+            if (data) {
+                setArticle(data as KBArticle)
+                setSelectedTags(data.tags || [])
+            }
         } catch (error) {
             toast({
                 title: 'Error',

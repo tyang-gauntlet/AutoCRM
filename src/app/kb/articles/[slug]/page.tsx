@@ -1,10 +1,10 @@
 import React from 'react'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { supabase } from '@/lib/supabase'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, BookOpen } from 'lucide-react'
 import Link from 'next/link'
+
 import { notFound } from 'next/navigation'
 import { ArticleContent } from './article-content'
 
@@ -15,7 +15,7 @@ interface PageProps {
 }
 
 export default async function ArticlePage({ params }: PageProps) {
-    const supabase = createServerComponentClient({ cookies })
+
 
     const { data: article } = await supabase
         .from('kb_articles')

@@ -1,0 +1,2 @@
+keep supabase migrations consolidated in the src/migrations folder
+keep supabase a singleton. do not use deprecated auth-helpers-nextjs

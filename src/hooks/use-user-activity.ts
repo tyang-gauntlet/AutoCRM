@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import type { Database } from '@/types/database'
+import { supabase } from '@/lib/supabase'
 import { unified } from 'unified'
 import remarkParse from 'remark-parse'
 import remarkGfm from 'remark-gfm'
 import remarkRehype from 'remark-rehype'
+
 import rehypeStringify from 'rehype-stringify'
 
 type UserActivity = {
@@ -27,7 +27,7 @@ export function useUserActivity() {
     const [activities, setActivities] = useState<UserActivity[]>([])
     const [faqs, setFaqs] = useState<FAQ[]>([])
     const [loading, setLoading] = useState(true)
-    const supabase = createClientComponentClient<Database>()
+
 
     useEffect(() => {
         let mounted = true

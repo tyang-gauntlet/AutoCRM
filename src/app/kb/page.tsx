@@ -1,8 +1,7 @@
 import React from 'react'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+
 import {
     Search,
     BookOpen,
@@ -17,7 +16,7 @@ import remarkGfm from 'remark-gfm'
 import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
 import { cn } from '@/lib/utils'
-
+import { supabase } from '@/lib/supabase'
 interface Category {
     id: string
     name: string
@@ -57,8 +56,8 @@ export default async function KnowledgeBasePage({
 }: {
     searchParams?: { q?: string }
 }) {
-    const supabase = createServerComponentClient({ cookies })
     const searchQuery = searchParams?.q || ''
+
 
     // Fetch categories
     const { data: categories } = await supabase
@@ -69,13 +68,14 @@ export default async function KnowledgeBasePage({
     // Fetch articles based on search query or get featured articles
     let articles: Article[] = []
     if (searchQuery) {
-        const { data } = await supabase
-            .rpc('search_kb_articles', {
-                search_query: searchQuery,
-                limit_val: 10,
-                offset_val: 0
-            })
-        articles = data || []
+        // TODO: Add RPC call to search articles
+        // const { data } = await supabase
+        //     .rpc('search_kb_articles', {
+        //         search_query: searchQuery,
+        //         limit_val: 10,
+        //         offset_val: 0
+        //     })
+        // articles = data || []
     } else {
         const { data } = await supabase
             .from('kb_articles')

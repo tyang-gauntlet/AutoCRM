@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import type { Database } from '@/types/database'
+import { supabase } from '@/lib/supabase'
 
 type TicketStats = {
     activeTickets: number
@@ -36,7 +35,6 @@ export function useTicketStats() {
     })
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const supabase = createClientComponentClient<Database>()
 
     const fetchStats = async () => {
         try {

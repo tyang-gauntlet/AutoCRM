@@ -6,14 +6,11 @@ import { useTicketDetails } from '@/hooks/use-ticket-details'
 import { UserTicketView } from '@/components/tickets/user-ticket-view'
 import type { TicketWithDetails } from '@/types/tickets'
 import type { TicketPriority, TicketStatus } from '@/constants/ticket'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useToast } from '@/hooks/use-toast'
-import type { Database } from '@/types/database'
-
+import { supabase } from '@/lib/supabase'
 export default function UserTicketDetail() {
     const { id } = useParams() as { id: string }
     const { ticket, messages, loading, sendMessage } = useTicketDetails(id, 'user')
-    const supabase = createClientComponentClient<Database>()
     const { toast } = useToast()
 
     if (loading || !ticket) {

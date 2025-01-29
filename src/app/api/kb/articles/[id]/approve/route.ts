@@ -1,14 +1,15 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { supabase } from '@/lib/supabase'
 import { NextResponse } from 'next/server'
+import { KBArticle } from '@/types/kb'
+
 
 export async function POST(
     request: Request,
     { params }: { params: { id: string } }
 ) {
     try {
-        const supabase = createRouteHandlerClient({ cookies })
         const { data: { session } } = await supabase.auth.getSession()
+
 
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -44,24 +45,26 @@ export async function POST(
             .update({
                 approved_by: session.user.id,
                 approved_at: new Date().toISOString(),
-                version: article.version + 1
+                version: (article.version || 0) + 1
             })
             .eq('id', params.id)
             .select()
 
         if (articleError) throw articleError
 
-        // Store version history
-        const { error: versionError } = await supabase
-            .from('kb_article_versions')
-            .insert({
-                article_id: params.id,
-                content: article.content,
-                version: article.version,
-                created_by: session.user.id
-            })
+        // TODO: Store version history
+        // const { error: versionError } = await supabase
+        //     .from('kb_articles')
+        //     .insert({
+        //         id: params.id,
+        //         content: article.content,
+        //         version: article.version,
+        //         created_by: session.user.id
+        //     })
 
-        if (versionError) throw versionError
+
+
+        // if (versionError) throw versionError
 
         return NextResponse.json(data)
     } catch (error) {

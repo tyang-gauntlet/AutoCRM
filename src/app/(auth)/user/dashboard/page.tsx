@@ -83,7 +83,9 @@ export default function UserDashboard() {
                     <p className="text-sm text-muted-foreground mb-4">
                         Get instant answers to common questions
                     </p>
-                    <Button className="w-full">Start Chat</Button>
+                    <Button className="w-full" asChild>
+                        <Link href="/user/chat">Start Chat</Link>
+                    </Button>
                 </Card>
 
                 <Card className="p-6">

@@ -204,7 +204,7 @@ export function useTicketDetails(ticketId: string | undefined, role?: 'reviewer'
     // Fetch ticket and messages
     useEffect(() => {
         fetchTicket()
-    }, [ticketId])
+    }, [ticketId, supabase])
 
     // Send message
     const sendMessage = useCallback(async (content: string) => {
@@ -261,7 +261,7 @@ export function useTicketDetails(ticketId: string | undefined, role?: 'reviewer'
             console.error('[useTicketDetails] Error in sendMessage:', error)
             return false
         }
-    }, [ticketId])
+    }, [ticketId, supabase])
 
     // Update status (reviewer only)
     const updateStatus = useCallback(async (newStatus: string) => {

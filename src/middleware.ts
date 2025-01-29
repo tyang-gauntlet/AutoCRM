@@ -23,9 +23,34 @@ const dashboardPaths = {
     user: '/user/dashboard'
 } as const
 
+// Define role-based path patterns
+const roleBasedPaths = {
+    admin: ['/admin'], // Allow all admin routes
+    reviewer: ['/reviewer'],
+    user: ['/user']
+}
+
+// Helper to check if path matches any pattern
+const pathMatchesPattern = (path: string, patterns: string[]) => {
+    const matches = patterns.some(pattern => path.startsWith(pattern))
+    console.log('[Middleware] Path match check:', {
+        path,
+        patterns,
+        matches
+    })
+    return matches
+}
+
 // Then export the middleware function
 export async function middleware(req: NextRequest) {
     const res = NextResponse.next()
+    const path = req.nextUrl.pathname
+
+    console.log('\n[Middleware] Starting middleware check:', {
+        path,
+        method: req.method,
+        url: req.url
+    })
 
     try {
         const accessToken = req.cookies.get('sb-access-token')?.value
@@ -103,54 +128,63 @@ export async function middleware(req: NextRequest) {
             }
         }
 
-        const path = req.nextUrl.pathname
         const isPublicRoute = publicRoutes.has(path) ||
             Array.from(publicRoutes).some(route => path.startsWith(route))
 
-        console.log('[Middleware] Auth state:', {
+        console.log('[Middleware] Route check:', {
             path,
+            isPublicRoute,
             hasSession: !!session,
-            userId: session?.user?.id,
-            role: session?.user?.app_metadata?.role,
-            isPublicRoute
+            userRole: session?.user?.app_metadata?.role
         })
 
         // Redirect to login if no session on protected route
         if (!session && !isPublicRoute) {
-            console.log('[Middleware] No valid session, redirecting to login')
+            console.log('[Middleware] No session, redirecting to login')
             return NextResponse.redirect(new URL('/login', req.url))
         }
 
         // If has session and on login page
         if (session && path === '/login') {
             const userRole = session.user.app_metadata.role || 'user'
-            const redirectTo = dashboardPaths[userRole as UserRole] || '/user/dashboard'
-            console.log('[Middleware] Redirecting to:', redirectTo)
-            return NextResponse.redirect(new URL(redirectTo, req.url))
+            console.log('[Middleware] User on login page, redirecting to dashboard:', {
+                userRole,
+                redirectTo: dashboardPaths[userRole as UserRole]
+            })
+            return NextResponse.redirect(new URL(dashboardPaths[userRole as UserRole], req.url))
         }
 
         // Role-based route protection
-        const roleBasedPaths = {
-            admin: '/admin',
-            reviewer: '/reviewer',
-            user: '/user'
-        }
-
-        // Check if user has access to this path
         if (session) {
             const userRole = session.user.app_metadata.role || 'user'
-            const allowedPath = roleBasedPaths[userRole as UserRole]
+            const allowedPaths = roleBasedPaths[userRole as UserRole] || []
+            const currentPath = req.nextUrl.pathname
 
-            // If trying to access a role-based path
-            for (const [role, path] of Object.entries(roleBasedPaths)) {
-                if (req.nextUrl.pathname.startsWith(path) && role !== userRole) {
-                    console.log('[Middleware] Invalid role access:', {
-                        userRole,
-                        attemptedPath: req.nextUrl.pathname
-                    })
-                    // Redirect to their proper dashboard
-                    return NextResponse.redirect(new URL(dashboardPaths[userRole as UserRole], req.url))
-                }
+            console.log('[Middleware] Checking role access:', {
+                userRole,
+                currentPath,
+                allowedPaths,
+                isAdmin: userRole === 'admin'
+            })
+
+            let hasAccess = false
+            if (userRole === 'admin') {
+                hasAccess = currentPath.startsWith('/admin')
+                console.log('[Middleware] Admin access check:', {
+                    currentPath,
+                    hasAccess
+                })
+            } else {
+                hasAccess = pathMatchesPattern(currentPath, allowedPaths)
+            }
+
+            if (!hasAccess) {
+                console.log('[Middleware] Access denied, redirecting to dashboard:', {
+                    userRole,
+                    currentPath,
+                    redirectTo: dashboardPaths[userRole as UserRole]
+                })
+                return NextResponse.redirect(new URL(dashboardPaths[userRole as UserRole], req.url))
             }
         }
 
@@ -161,6 +195,7 @@ export async function middleware(req: NextRequest) {
             res.headers.set('x-user-role', session.user.app_metadata.role || 'user')
         }
 
+        console.log('[Middleware] Access granted:', { path })
         return res
     } catch (error) {
         console.error('[Middleware] Error:', error)

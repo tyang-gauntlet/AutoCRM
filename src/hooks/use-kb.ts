@@ -1,11 +1,10 @@
 import { useState, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase'
 import type { CreateArticleRequest, UpdateArticleRequest, ArticleStatus } from '@/types/kb'
 
 export function useKB() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const supabase = createClientComponentClient()
 
     const handleError = (err: unknown) => {
         const message = err instanceof Error ? err.message : 'An unknown error occurred'
@@ -127,12 +126,12 @@ export function useKB() {
             setError(null)
 
             const { data, error } = await supabase
-                .from('kb_article_versions')
+                .from('kb_articles')
                 .select(`
                     *,
                     created_by:profiles(id, full_name)
                 `)
-                .eq('article_id', articleId)
+                .eq('id', articleId)
                 .order('version', { ascending: false })
 
             if (error) throw error
