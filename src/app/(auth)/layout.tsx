@@ -2,24 +2,27 @@
 
 import { useAuth } from '@/contexts/auth-context'
 import { Header } from '@/components/layout/header'
-import { Loader2 } from 'lucide-react'
-import { Suspense } from 'react'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
-function LoadingSpinner() {
-    return (
-        <div className="min-h-screen bg-background">
-            <div className="flex items-center justify-center h-screen">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        </div>
-    )
-}
+export default function AuthLayout({
+    children,
+}: {
+    children: React.ReactNode
+}) {
+    const { user, loading } = useAuth()
+    const router = useRouter()
 
-function AuthLayoutContent({ children }: { children: React.ReactNode }) {
-    const { loading } = useAuth()
+    useEffect(() => {
+        // Only redirect if auth is finished loading and we have no user
+        if (!loading && user === null) {
+            router.push('/login')
+        }
+    }, [user, loading, router])
 
-    if (loading) {
-        return <LoadingSpinner />
+    // Show nothing while redirecting
+    if (!loading && user === null) {
+        return null
     }
 
     return (
@@ -29,17 +32,5 @@ function AuthLayoutContent({ children }: { children: React.ReactNode }) {
                 {children}
             </main>
         </div>
-    )
-}
-
-export default function AuthLayout({
-    children,
-}: {
-    children: React.ReactNode
-}) {
-    return (
-        <Suspense fallback={<LoadingSpinner />}>
-            <AuthLayoutContent>{children}</AuthLayoutContent>
-        </Suspense>
     )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/contexts/auth-context'
-import { Loader2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
 interface DashboardLayoutProps {
@@ -9,52 +9,35 @@ interface DashboardLayoutProps {
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-    const { loading, user, profile } = useAuth()
-
-    console.log('[ReviewerDashboard Layout] Initial render:', {
-        loading,
-        hasUser: !!user,
-        hasProfile: !!profile,
-        profileRole: profile?.role
-    })
+    const { user, profile, profileLoading } = useAuth()
+    const router = useRouter()
 
     useEffect(() => {
-        console.log('[ReviewerDashboard Layout] Auth State:', {
-            loading,
-            userExists: !!user,
-            userId: user?.id,
-            userEmail: user?.email,
-            profileExists: !!profile,
-            profileRole: profile?.role,
-            timestamp: new Date().toISOString(),
-        })
-    }, [loading, user, profile])
+        // Only redirect if we have profile and it's not a reviewer
+        if (profile && profile.role !== 'reviewer') {
+            router.push('/')
+        }
+    }, [profile, router])
 
-    if (loading) {
-        console.log('[Reviewer Dashboard] Loading state...', {
-            timestamp: new Date().toISOString(),
-        })
+    // Show skeleton loader while profile is loading
+    if (profileLoading) {
         return (
-            <div className="flex h-screen items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin" />
+            <div className="flex h-screen">
+                <div className="flex-1 p-8">
+                    <div className="animate-pulse space-y-4">
+                        <div className="h-8 w-1/4 bg-muted rounded" />
+                        <div className="h-4 w-1/3 bg-muted rounded" />
+                    </div>
+                </div>
             </div>
         )
     }
 
-    if (!user || profile?.role !== 'reviewer') {
-        console.log('[ReviewerDashboard Layout] Access denied:', {
-            hasUser: !!user,
-            profileRole: profile?.role
-        })
+    // Don't render anything while redirecting
+    if (profile && profile.role !== 'reviewer') {
         return null
     }
 
-    console.log('[Reviewer Dashboard] Rendering content', {
-        userId: user.id,
-        userEmail: user.email,
-        hasProfile: !!profile,
-        timestamp: new Date().toISOString(),
-    })
     return (
         <div className="flex h-screen">
             {children}
