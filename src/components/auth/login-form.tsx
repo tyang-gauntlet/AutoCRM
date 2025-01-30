@@ -56,9 +56,12 @@ export function LoginForm() {
             }
 
             await signUp(signupData.email, signupData.password)
+            // Sign in immediately after signup
+            await signIn(signupData.email, signupData.password)
+            // Auth context will handle the redirect to dashboard
             toast({
                 title: 'Success',
-                description: 'Check your email to confirm your account'
+                description: 'Account created successfully'
             })
             setActiveTab('login')
         } catch (error) {
@@ -139,6 +142,36 @@ export function LoginForm() {
                     </form>
                 </TabsContent>
             </Tabs>
+
+            {/* Test Login Buttons */}
+            <div className="p-6 border-t">
+                <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground text-center font-medium">Test Accounts</p>
+                    <div className="grid gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => signIn('admin@example.com', 'admin123')}
+                            disabled={isLoading}
+                        >
+                            Login as Admin
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => signIn('reviewer@example.com', 'reviewer123')}
+                            disabled={isLoading}
+                        >
+                            Login as Reviewer
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => signIn('user@example.com', 'user123')}
+                            disabled={isLoading}
+                        >
+                            Login as User
+                        </Button>
+                    </div>
+                </div>
+            </div>
         </Card>
     )
 } 

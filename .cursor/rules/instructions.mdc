@@ -1,6 +1,8 @@
-# AutoCRM
-
-Develop a Customer Relationship Management (CRM) system to manage customer data, track interactions, and improve customer engagement. The solution will leverage modern web technologies for a lightweight, scalable, and user-friendly application. The application will be built with a focus on API first design and real-time data updates for automation and AI. The goal is to lay groundwork to enable a highly automated customer service system, where AI resolves most tickets and significantly reduces the workload on human agents.
+---
+description: instructions
+globs: *
+---
+elop a Customer Relationship Management (CRM) system to manage customer data, track interactions, and improve customer engagement. The solution will leverage modern web technologies for a lightweight, scalable, and user-friendly application. The application will be built with a focus on API first design and real-time data updates for automation and AI. The goal is to lay groundwork to enable a highly automated customer service system, where AI resolves most tickets and significantly reduces the workload on human agents.
 
 ## Technologies
 
