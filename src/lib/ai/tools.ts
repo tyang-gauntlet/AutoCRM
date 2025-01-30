@@ -282,4 +282,35 @@ export async function executeToolCall(
     })
 
     return toolCall
+}
+
+export function formatToolResult(tool: ToolCall): string {
+    if (tool.error) return tool.error
+    if (!tool.result) return ''
+
+    // Special handling for createTicket result
+    if (tool.name === 'createTicket' && typeof tool.result === 'object' && tool.result !== null) {
+        const ticketResult = tool.result as {
+            id: string,
+            title: string,
+            priority: string,
+            status: string,
+            created_at: string
+        }
+        return [
+            `Ticket #${ticketResult.id}`,
+            `Title: ${ticketResult.title}`,
+            `Priority: ${ticketResult.priority}`,
+            `Status: ${ticketResult.status}`,
+            `Created: ${new Date(ticketResult.created_at).toLocaleString()}`
+        ].join('\n')
+    }
+
+    // Handle other object results
+    if (typeof tool.result === 'object') {
+        return JSON.stringify(tool.result, null, 2)
+    }
+
+    // Handle string results
+    return String(tool.result)
 } 

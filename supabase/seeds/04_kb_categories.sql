@@ -7,7 +7,8 @@ VALUES
     ('Best Practices', 'best-practices', 'Recommended usage and tips'),
     ('API Documentation', 'api', 'API reference and examples'),
     ('Security', 'security', 'Security guidelines and practices'),
-    ('Updates', 'updates', 'Product updates and changelogs')
+    ('Updates', 'updates', 'Product updates and changelogs'),
+    ('General', 'general', 'General articles and guides')
 ON CONFLICT (slug) DO UPDATE
 SET 
     name = EXCLUDED.name,

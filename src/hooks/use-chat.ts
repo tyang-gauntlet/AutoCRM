@@ -1,12 +1,10 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { nanoid } from 'nanoid'
+import { useState, useCallback, useRef } from 'react'
 import type { ChatMessage } from '@/types/chat'
 import { useToast } from '@/hooks/use-toast'
 import { closeTicket } from '@/app/api/tickets/[id]/actions'
 import { AgentResponse } from '@/lib/ai/agent-interfaces'
-import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
 interface UseChatProps {
@@ -18,97 +16,78 @@ export function useChat({ ticketId }: UseChatProps = {}) {
     const [isLoading, setIsLoading] = useState(false)
     const { toast } = useToast()
     const router = useRouter()
+    const loadingRef = useRef(false)
 
-    const sendMessage = async (content: string) => {
+    const clearMessages = useCallback(() => {
+        setMessages([])
+    }, [])
+
+    const addMessage = useCallback((message: ChatMessage) => {
+        setMessages(prev => [...prev, message])
+    }, [])
+
+    const sendMessage = useCallback(async (content: string | null) => {
+        console.log('💬 sendMessage called:', {
+            content,
+            isLoading: loadingRef.current,
+            currentMessages: messages.length
+        })
+
+        if (loadingRef.current) {
+            console.log('⏳ Message skipped - already loading')
+            return false
+        }
+
+        loadingRef.current = true
+        setIsLoading(true)
+
         try {
-            setIsLoading(true)
-            console.log('🔍 Starting message send...')
-
-            // Check if we have a valid session
-            console.log('🔑 Checking Supabase session...')
-            const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
-            console.log('📦 Session data:', sessionData)
-
-            if (sessionError) {
-                console.error('❌ Session error:', sessionError)
-                router.push('/auth/login')
-                throw new Error('Authentication error: ' + sessionError.message)
-            }
-
-            if (!sessionData.session) {
-                console.error('❌ No session found')
-                router.push('/auth/login')
-                throw new Error('Please sign in to continue')
-            }
-
-            // Refresh session if it's about to expire
-            const expiresAt = sessionData.session.expires_at
-            const fiveMinutes = 5 * 60 // 5 minutes in seconds
-            if (expiresAt && expiresAt - Math.floor(Date.now() / 1000) < fiveMinutes) {
-                console.log('🔄 Refreshing session...')
-                const { error: refreshError } = await supabase.auth.refreshSession()
-                if (refreshError) {
-                    console.error('❌ Session refresh error:', refreshError)
-                    router.push('/auth/login')
-                    throw new Error('Session expired. Please sign in again.')
+            // Add user message if content is provided (not initial greeting)
+            if (content !== null) {
+                console.log('👤 Adding user message:', content)
+                const userMessage: ChatMessage = {
+                    role: 'user',
+                    content,
+                    timestamp: new Date().toISOString()
                 }
+                addMessage(userMessage)
+            } else {
+                console.log('🤖 Processing initial greeting')
             }
 
-            console.log('✅ Session valid, user:', sessionData.session.user.email)
+            // Call AI endpoint with latest messages
+            const currentMessages = await new Promise<ChatMessage[]>(resolve => {
+                setMessages(messages => {
+                    resolve(messages)
+                    return messages
+                })
+            })
 
-            // Generate trace ID for metrics
-            const traceId = `trace_${nanoid()}`
-            console.log('📝 Generated trace ID:', traceId)
-
-            // Add user message
-            const userMessage: ChatMessage = {
-                role: 'user',
-                content,
-                timestamp: new Date().toISOString()
-            }
-            setMessages(prev => [...prev, userMessage])
-
-            // Call AI endpoint
-            console.log('🚀 Calling AI endpoint...')
+            console.log('🚀 Calling AI endpoint with messages:', currentMessages.length)
             const response = await fetch('/api/ai/chat', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${sessionData.session.access_token}`
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     message: content,
                     ticketId,
-                    traceId
-                }),
-                credentials: 'include'
+                    previousMessages: currentMessages
+                })
             })
 
-            console.log('📡 API Response status:', response.status)
-
             if (!response.ok) {
-                const errorText = await response.text()
-                console.error('❌ API Error:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    body: errorText
-                })
-
-                if (response.status === 401) {
-                    router.push('/auth/login')
-                    throw new Error('Session expired. Please sign in again.')
-                }
-                throw new Error(`Failed to send message: ${response.statusText}`)
+                throw new Error('Failed to send message')
             }
 
             const responseData: AgentResponse = await response.json()
             console.log('✅ Received AI response:', {
                 messageLength: responseData.message.length,
+                message: responseData.message,
                 hasToolCalls: !!responseData.tool_calls?.length,
                 hasContext: !!responseData.context_used?.length
             })
 
             // Add AI response
+            console.log('🤖 Adding AI response to messages')
             const aiMessage: ChatMessage = {
                 role: 'assistant',
                 content: responseData.message,
@@ -116,7 +95,17 @@ export function useChat({ ticketId }: UseChatProps = {}) {
                 tool_calls: responseData.tool_calls,
                 context_used: responseData.context_used
             }
-            setMessages(prev => [...prev, aiMessage])
+
+            // Update messages with AI response
+            addMessage(aiMessage)
+            console.log('📝 Setting final messages:', {
+                previousCount: currentMessages.length,
+                newCount: currentMessages.length + 1,
+                messages: [...currentMessages, aiMessage].map(m => ({
+                    role: m.role,
+                    content: m.content.slice(0, 50)
+                }))
+            })
 
             // Handle any actions returned by the AI
             const actions = responseData.actions || []
@@ -142,13 +131,15 @@ export function useChat({ ticketId }: UseChatProps = {}) {
             })
             return false
         } finally {
+            loadingRef.current = false
             setIsLoading(false)
         }
-    }
+    }, [addMessage, ticketId, toast, router])
 
     return {
         messages,
         sendMessage,
-        isLoading
+        isLoading,
+        clearMessages
     }
 } 

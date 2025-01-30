@@ -26,8 +26,8 @@ const dashboardPaths = {
 // Define role-based path patterns
 const roleBasedPaths = {
     admin: ['/admin'], // Allow all admin routes
-    reviewer: ['/reviewer'],
-    user: ['/user']
+    reviewer: ['/reviewer', '/kb'],
+    user: ['/user', '/kb']
 }
 
 // Helper to check if path matches any pattern

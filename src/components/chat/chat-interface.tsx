@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, Fragment } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { useChat } from '@/hooks/use-chat'
+import { useChat } from '@/contexts/chat-context'
 import { cn } from '@/lib/utils'
 import { Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -13,23 +13,32 @@ import { Card } from '@/components/ui/card'
 import { ToolCall } from '@/lib/ai/agent-interfaces'
 
 export function ChatInterface() {
+    const { messages, sendMessage, isLoading } = useChat()
     const [message, setMessage] = useState('')
     const [showContext, setShowContext] = useState<Record<number, boolean>>({})
     const [showToolCalls, setShowToolCalls] = useState<Record<string, boolean>>({})
-    const { messages, sendMessage, isLoading } = useChat()
     const scrollRef = useRef<HTMLDivElement>(null)
+    const prevMessagesLength = useRef(messages.length)
+
+
 
     // Auto scroll to bottom on new messages
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollIntoView({ behavior: 'smooth' })
+        // Only scroll if messages were added
+        if (messages.length > prevMessagesLength.current) {
+            console.log('📜 Scrolling to bottom')
+            if (scrollRef.current) {
+                scrollRef.current.scrollIntoView({ behavior: 'smooth' })
+            }
         }
+        prevMessagesLength.current = messages.length
     }, [messages])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!message.trim() || isLoading) return
 
+        console.log('📤 Submitting message:', message)
         await sendMessage(message)
         setMessage('')
     }
@@ -109,9 +118,9 @@ export function ChatInterface() {
                                                     </AlertDescription>
                                                 </Alert>
                                             )}
-                                            {tool.result && (
+                                            {tool.result !== undefined && tool.result !== null && (
                                                 <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
-                                                    {String(typeof tool.result === 'string' ? tool.result : JSON.stringify(tool.result, null, 2))}
+                                                    {Array.isArray(tool.result) ? JSON.stringify(tool.result, null, 2) : String(tool.result)}
                                                 </pre>
                                             )}
                                         </Fragment>

@@ -183,6 +183,7 @@ export type Database = {
           content_format: string | null
           created_at: string
           created_by: string | null
+          has_embeddings: boolean | null
           id: string
           metadata: Json | null
           search_vector: unknown | null
@@ -201,6 +202,7 @@ export type Database = {
           content_format?: string | null
           created_at?: string
           created_by?: string | null
+          has_embeddings?: boolean | null
           id?: string
           metadata?: Json | null
           search_vector?: unknown | null
@@ -219,6 +221,7 @@ export type Database = {
           content_format?: string | null
           created_at?: string
           created_by?: string | null
+          has_embeddings?: boolean | null
           id?: string
           metadata?: Json | null
           search_vector?: unknown | null
@@ -358,6 +361,56 @@ export type Database = {
         }
         Relationships: []
       }
+      knowledge_retrieval_metrics: {
+        Row: {
+          accuracy: number | null
+          context_match: number | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          metric_id: string | null
+          query_text: string
+          relevance_score: number | null
+          relevant_chunks: Json | null
+          retrieved_chunks: Json | null
+          updated_at: string
+        }
+        Insert: {
+          accuracy?: number | null
+          context_match?: number | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          metric_id?: string | null
+          query_text: string
+          relevance_score?: number | null
+          relevant_chunks?: Json | null
+          retrieved_chunks?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          accuracy?: number | null
+          context_match?: number | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          metric_id?: string | null
+          query_text?: string
+          relevance_score?: number | null
+          relevant_chunks?: Json | null
+          retrieved_chunks?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_retrieval_metrics_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "ai_metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -390,6 +443,91 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      response_quality_metrics: {
+        Row: {
+          accuracy: number | null
+          clarity_score: number | null
+          created_at: string
+          helpfulness_score: number | null
+          human_rating: number | null
+          id: string
+          message_id: string | null
+          metadata: Json | null
+          metric_id: string | null
+          overall_quality: number | null
+          relevance: number | null
+          response_length: number | null
+          response_text: string | null
+          response_time: unknown | null
+          sentiment_score: number | null
+          ticket_id: string | null
+          tone: number | null
+          updated_at: string
+        }
+        Insert: {
+          accuracy?: number | null
+          clarity_score?: number | null
+          created_at?: string
+          helpfulness_score?: number | null
+          human_rating?: number | null
+          id?: string
+          message_id?: string | null
+          metadata?: Json | null
+          metric_id?: string | null
+          overall_quality?: number | null
+          relevance?: number | null
+          response_length?: number | null
+          response_text?: string | null
+          response_time?: unknown | null
+          sentiment_score?: number | null
+          ticket_id?: string | null
+          tone?: number | null
+          updated_at?: string
+        }
+        Update: {
+          accuracy?: number | null
+          clarity_score?: number | null
+          created_at?: string
+          helpfulness_score?: number | null
+          human_rating?: number | null
+          id?: string
+          message_id?: string | null
+          metadata?: Json | null
+          metric_id?: string | null
+          overall_quality?: number | null
+          relevance?: number | null
+          response_length?: number | null
+          response_text?: string | null
+          response_time?: unknown | null
+          sentiment_score?: number | null
+          ticket_id?: string | null
+          tone?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "response_quality_metrics_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "ticket_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "response_quality_metrics_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "ai_metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "response_quality_metrics_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ticket_feedback: {
         Row: {
@@ -597,6 +735,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      begin_transaction: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       binary_quantize:
         | {
             Args: {
@@ -610,6 +752,10 @@ export type Database = {
             }
             Returns: unknown
           }
+      commit_transaction: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_policies: {
         Args: {
           table_name: string
@@ -776,6 +922,10 @@ export type Database = {
           article_url: string
           similarity: number
         }[]
+      }
+      rollback_transaction: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       set_limit: {
         Args: {

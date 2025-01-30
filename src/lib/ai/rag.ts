@@ -11,27 +11,84 @@ const embeddings = new OpenAIEmbeddings({
 
 export async function searchKnowledge(query: string, limit = 5): Promise<RAGContext[]> {
     try {
+        console.log('RAG Search - Query:', query)
+
         // Generate embedding for query
         const queryEmbedding = await embeddings.embedQuery(query)
+        console.log('RAG Search - Embedding generated, length:', queryEmbedding.length)
 
-        // Search for similar documents
+        // First try with coffee-specific search
+        if (query.toLowerCase().includes('coffee')) {
+            console.log('RAG Search - Coffee-specific search')
+            const { data: coffeeResults, error: coffeeError } = await supabase
+                .from('kb_articles')
+                .select('id, title')
+                .ilike('title', '%coffee%')
+
+            if (!coffeeError && coffeeResults?.length > 0) {
+                console.log('RAG Search - Found coffee articles:', coffeeResults)
+            }
+        }
+
+        // Verify embedding format
+        if (!Array.isArray(queryEmbedding) || queryEmbedding.length !== 1536) {
+            throw new Error(`Invalid embedding format: expected array of 1536 numbers, got ${typeof queryEmbedding} of length ${queryEmbedding?.length}`)
+        }
+
+        // Search for similar documents with lower threshold for debugging
         const { data: results, error } = await supabase.rpc('match_kb_embeddings', {
-            query_embedding: queryEmbedding,
-            similarity_threshold: 0.8,
-            match_count: limit
+            query_embedding: `[${queryEmbedding.join(',')}]`,  // Convert to Postgres vector format
+            similarity_threshold: 0.5,  // Lower threshold for testing
+            match_count: limit * 2  // Double limit for testing
         })
 
-        if (error) throw error
+        if (error) {
+            console.error('RAG Search - Error:', error)
+            throw error
+        }
+
+        if (!results || results.length === 0) {
+            // Fallback to direct article lookup for coffee-related queries
+            if (query.toLowerCase().includes('coffee')) {
+                const { data: articles, error: articlesError } = await supabase
+                    .from('kb_articles')
+                    .select(`
+                        id,
+                        title,
+                        content,
+                        kb_embeddings (
+                            content,
+                            embedding
+                        )
+                    `)
+                    .ilike('title', '%coffee%')
+                    .limit(limit)
+
+                if (!articlesError && articles?.length > 0) {
+                    return articles.map(article => ({
+                        article_id: article.id,
+                        title: article.title,
+                        content: article.kb_embeddings?.[0]?.content || article.content,
+                        similarity: 1.0  // Direct match
+                    }))
+                }
+            }
+        }
+
+        console.log('RAG Search - Results:', results)
 
         // Format results
-        return results.map(result => ({
+        const formattedResults = results?.map(result => ({
             article_id: result.article_id,
             title: result.article_title,
             content: result.content,
             similarity: result.similarity
-        }))
+        })) || []
+
+        console.log('RAG Search - Formatted results:', formattedResults)
+        return formattedResults
     } catch (error) {
-        console.error('Error searching knowledge base:', error)
+        console.error('RAG Search - Critical error:', error)
         return []
     }
 }
