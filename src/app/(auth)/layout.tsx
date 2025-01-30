@@ -26,10 +26,12 @@ export default function AuthLayout({
     }
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="flex flex-col h-[calc(100vh-40rem)] bg-background">
             <Header />
-            <main className="mx-auto">
-                {children}
+            <main className="flex-1 w-full">
+                <div className="h-full">
+                    {children}
+                </div>
             </main>
         </div>
     )

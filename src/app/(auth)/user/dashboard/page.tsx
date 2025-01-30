@@ -44,7 +44,7 @@ export default function UserDashboard() {
 
     if (loading) {
         return (
-            <div className="flex h-screen items-center justify-center">
+            <div className="flex  items-center justify-center">
                 <Loader size="lg" />
             </div>
         )

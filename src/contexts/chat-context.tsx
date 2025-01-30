@@ -18,12 +18,32 @@ interface ChatContextType {
 const ChatContext = createContext<ChatContextType | null>(null)
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
-    const [messages, setMessages] = useState<ChatMessage[]>([])
+    const [messages, setMessages] = useState<ChatMessage[]>(() => {
+        // Try to load messages from localStorage
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('chat_messages')
+            if (saved) {
+                try {
+                    return JSON.parse(saved)
+                } catch (e) {
+                    console.error('Failed to parse saved messages:', e)
+                }
+            }
+        }
+        return []
+    })
     const [isLoading, setIsLoading] = useState(false)
     const [initialized, setInitialized] = useState(false)
     const { toast } = useToast()
     const router = useRouter()
     const loadingRef = useRef(false)
+
+    // Save messages to localStorage whenever they change
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('chat_messages', JSON.stringify(messages))
+        }
+    }, [messages])
 
     useEffect(() => {
         setInitialized(true)
@@ -31,6 +51,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     const clearMessages = useCallback(() => {
         setMessages([])
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('chat_messages')
+        }
     }, [])
 
     const addMessage = useCallback((message: ChatMessage) => {

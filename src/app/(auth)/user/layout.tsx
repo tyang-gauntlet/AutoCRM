@@ -14,7 +14,7 @@ export default function UserLayout({
     if (loading) return null
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className=" bg-background">
             {/* User-specific navigation and layout */}
             {children}
         </div>

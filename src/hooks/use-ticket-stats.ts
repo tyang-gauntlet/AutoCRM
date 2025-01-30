@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 
 type TicketStats = {
@@ -21,6 +21,9 @@ type TicketStats = {
     }[]
 }
 
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+let statsCache: { data: TicketStats; timestamp: number } | null = null
+
 export function useTicketStats() {
     const [stats, setStats] = useState<TicketStats>({
         activeTickets: 0,
@@ -36,11 +39,85 @@ export function useTicketStats() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    const fetchStats = async () => {
+    const calculateCustomerSatisfaction = useCallback(async () => {
         try {
+            console.log('Starting customer satisfaction calculation...')
+
+            // First check if there's any data at all in the table
+            const { data: allFeedback, error: allFeedbackError } = await supabase
+                .from('ticket_feedback')
+                .select('rating, created_at')
+                .order('created_at', { ascending: false })
+
+            console.log('All feedback data ever:', allFeedback)
+
+            const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+            console.log('Fetching feedback since:', thirtyDaysAgo)
+
+            const { data: feedbackData, error: feedbackError } = await supabase
+                .from('ticket_feedback')
+                .select('rating, created_at')
+                .gte('created_at', thirtyDaysAgo)
+
+            if (feedbackError) {
+                console.error('Error fetching feedback:', feedbackError)
+                throw feedbackError
+            }
+
+            console.log('Raw feedback data:', feedbackData)
+            let customerSatisfaction = 0
+            let feedbackCount = 0
+
+            if (feedbackData && feedbackData.length > 0) {
+                console.log('Found feedback entries:', feedbackData.length)
+                // Filter out invalid ratings
+                const validFeedback = feedbackData.filter(feedback => {
+                    const isValid = typeof feedback.rating === 'number' &&
+                        feedback.rating >= 1 &&
+                        feedback.rating <= 5
+                    if (!isValid) {
+                        console.log('Invalid feedback entry:', feedback)
+                    }
+                    return isValid
+                })
+
+                console.log('Valid feedback entries:', validFeedback.length)
+                feedbackCount = validFeedback.length
+                if (feedbackCount > 0) {
+                    const totalRating = validFeedback.reduce((sum, feedback) => {
+                        console.log('Adding rating:', feedback.rating)
+                        return sum + feedback.rating
+                    }, 0)
+                    console.log('Total rating sum:', totalRating)
+                    customerSatisfaction = Number((totalRating / feedbackCount).toFixed(1))
+                    console.log('Calculated satisfaction:', customerSatisfaction)
+                } else {
+                    console.log('No valid feedback entries found')
+                }
+            } else {
+                console.log('No feedback data found in the last 30 days')
+            }
+
+            console.log('Final results:', { customerSatisfaction, feedbackCount })
+            return { customerSatisfaction, feedbackCount }
+        } catch (error) {
+            console.error('Error calculating customer satisfaction:', error)
+            return { customerSatisfaction: 0, feedbackCount: 0 }
+        }
+    }, [])
+
+    const fetchStats = useCallback(async (forceFetch = false) => {
+        try {
+            // Check cache first
+            if (!forceFetch && statsCache && Date.now() - statsCache.timestamp < CACHE_DURATION) {
+                setStats(statsCache.data)
+                setLoading(false)
+                return
+            }
+
             setError(null)
             const { data: { session } } = await supabase.auth.getSession()
-            console.log("FETCHING TICKET STATS", session)
+
             if (!session) {
                 setLoading(false)
                 return
@@ -174,21 +251,10 @@ export function useTicketStats() {
                 }
             }) || []
 
-            // Calculate customer satisfaction from actual feedback
-            const { data: feedbackData } = await supabase
-                .from('ticket_feedback')
-                .select('rating')
-                .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()) // Last 30 days
+            // Calculate customer satisfaction with improved error handling
+            const { customerSatisfaction, feedbackCount } = await calculateCustomerSatisfaction()
 
-            let customerSatisfaction = 0
-            let feedbackCount = 0
-            if (feedbackData && feedbackData.length > 0) {
-                feedbackCount = feedbackData.length
-                const totalRating = feedbackData.reduce((sum, feedback) => sum + feedback.rating, 0)
-                customerSatisfaction = Number((totalRating / feedbackCount).toFixed(1))
-            }
-
-            setStats({
+            const newStats = {
                 activeTickets: activeTickets || 0,
                 queueWaitTime,
                 aiResolutionRate,
@@ -198,14 +264,22 @@ export function useTicketStats() {
                 averageResponseTime,
                 autoResolvedToday: autoResolvedToday || 0,
                 recentActivity: formattedActivity
-            })
+            }
+
+            // Update cache
+            statsCache = {
+                data: newStats,
+                timestamp: Date.now()
+            }
+
+            setStats(newStats)
         } catch (error) {
             console.error('Error fetching ticket stats:', error)
             setError('Failed to fetch ticket statistics')
         } finally {
             setLoading(false)
         }
-    }
+    }, [calculateCustomerSatisfaction])
 
     useEffect(() => {
         let mounted = true
@@ -217,18 +291,12 @@ export function useTicketStats() {
 
         fetchAndSetStats()
 
-        // Set up real-time subscription
-        const channel = supabase.channel('tickets-changes', {
-            config: {
-                broadcast: { self: true },
-                presence: {
-                    key: 'tickets-dashboard',
-                },
-            },
-        })
+        // Set up real-time subscription for tickets and feedback
+        const ticketsChannel = supabase.channel('tickets-changes')
+        const feedbackChannel = supabase.channel('feedback-changes')
 
-        // Subscribe to all ticket changes
-        channel
+        // Subscribe to ticket changes
+        ticketsChannel
             .on(
                 'postgres_changes',
                 {
@@ -236,34 +304,42 @@ export function useTicketStats() {
                     schema: 'public',
                     table: 'tickets',
                 },
-                async (payload) => {
-                    console.log('Ticket change detected:', payload)
+                async () => {
                     if (mounted) {
-                        await fetchAndSetStats()
+                        await fetchStats(true) // Force fetch on ticket changes
                     }
                 }
             )
-            .subscribe(async (status) => {
-                console.log('Subscription status:', status)
-                if (status === 'SUBSCRIBED') {
-                    console.log('Successfully subscribed to ticket changes')
-                    // Initial fetch after subscription
-                    await fetchAndSetStats()
+            .subscribe()
+
+        // Subscribe to feedback changes
+        feedbackChannel
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'ticket_feedback',
+                },
+                async () => {
+                    if (mounted) {
+                        await fetchStats(true) // Force fetch on feedback changes
+                    }
                 }
-            })
+            )
+            .subscribe()
 
         return () => {
-            console.log('Cleaning up subscription...')
             mounted = false
-            supabase.removeChannel(channel)
+            supabase.removeChannel(ticketsChannel)
+            supabase.removeChannel(feedbackChannel)
         }
-    }, []) // fetchStats is intentionally omitted to prevent re-subscriptions
+    }, [fetchStats])
 
-    // Expose the stats and a manual refresh function
     return {
         stats,
         loading,
         error,
-        refreshStats: fetchStats
+        refreshStats: () => fetchStats(true) // Force refresh when manually called
     }
 } 

@@ -15,7 +15,7 @@ export default function Error({
     }, [error])
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+        <div className="flex flex-col items-center justify-center gap-4">
             <h2 className="text-xl font-semibold">Something went wrong!</h2>
             <Button onClick={reset}>Try again</Button>
         </div>
