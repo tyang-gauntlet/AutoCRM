@@ -16,17 +16,17 @@ export function ChatUI() {
 
     return (
         <div className="relative">
-            <Card className="max-w-4xl mx-auto">
-                <div className="p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <h1 className="text-2xl font-bold">AI Assistant</h1>
+            <Card className="max-w-3xl mx-auto">
+                <div className="p-4">
+                    <div className="flex justify-between items-center mb-4">
+                        <h1 className="text-xl font-semibold">AI Assistant</h1>
                         <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             onClick={handleStartOver}
-                            className="gap-2"
+                            className="gap-1.5"
                         >
-                            <RotateCcw className="h-4 w-4" />
+                            <RotateCcw className="h-3.5 w-3.5" />
                         </Button>
                     </div>
                     <ChatInterface />

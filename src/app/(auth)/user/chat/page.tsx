@@ -38,7 +38,7 @@ export default function ChatPage() {
     if (!initialized) return null
 
     return (
-        <div className="container max-w-4xl mx-auto py-10">
+        <div className="container max-w-3xl mx-auto py-6">
             <ChatUI />
         </div>
     )

@@ -60,7 +60,7 @@ const nodes = {
         const lastAssistantMessage = state.messages
             .filter(msg => msg.role === 'assistant')
             .pop()
-        const wasOfferingTicket = lastAssistantMessage?.content.includes('Would you like me to create a support ticket')
+        const wasOfferingTicket = /create\s+ticket/i.test(lastAssistantMessage?.content || '');
 
         // If this is a "yes" to a ticket creation offer, create the ticket
         if (isAffirmative && wasOfferingTicket) {
@@ -322,9 +322,12 @@ const nodes = {
 // Create our conversation pipeline
 const pipeline = RunnableSequence.from([
     async (state: ConversationState) => await nodes.analyze_intent(state),
-    async (state: ConversationState) => await nodes.gather_context(state),
     async (state: ConversationState) => await nodes.analyze_ticket_need(state),
-    async (state: ConversationState) => await nodes.handle_ticket(state),
+    async (state: ConversationState) => {
+        // Skip context gathering if we already have a response (e.g. from ticket creation)
+        if (state.response) return state
+        return await nodes.gather_context(state)
+    },
     async (state: ConversationState) => await nodes.generate_response(state),
     async (state: ConversationState) => await nodes.record_metrics(state)
 ])

@@ -67,18 +67,18 @@ export function ChatInterface() {
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-12rem)]">
-            <ScrollArea className="flex-1 p-4 border rounded-lg mb-4">
-                <div className="space-y-4 max-w-full">
+        <div className="flex flex-col h-[calc(100vh-10rem)]">
+            <ScrollArea className="flex-1 p-3 border rounded-lg mb-3">
+                <div className="space-y-3 max-w-full">
                     {messages.map((msg, i) => (
-                        <div key={i} className="space-y-2">
+                        <div key={i} className="space-y-1.5">
                             <div className={cn(
                                 "flex",
                                 msg.role === 'user' ? "justify-end" : "justify-start"
                             )}>
                                 <div
                                     className={cn(
-                                        "rounded-lg px-4 py-2 max-w-[85%] whitespace-pre-wrap break-words text-sm",
+                                        "rounded-lg px-3 py-1.5 max-w-[85%] whitespace-pre-wrap break-words text-[13px]",
                                         msg.role === 'user'
                                             ? "bg-primary text-primary-foreground"
                                             : "bg-muted"
@@ -91,20 +91,20 @@ export function ChatInterface() {
                             {/* Tool Calls */}
                             {msg.tool_calls?.map((tool: ToolCall, index) => (
                                 <Card key={index} className={cn(
-                                    "p-3 space-y-2 max-w-[85%] text-xs",
+                                    "p-2 space-y-1.5 max-w-[85%] text-[11px]",
                                     msg.role === 'user' ? "ml-auto" : ""
                                 )}>
                                     <button
                                         onClick={() => toggleToolCall(tool.id)}
-                                        className="flex items-center gap-2 w-full hover:bg-muted/50 p-1 rounded"
+                                        className="flex items-center gap-1.5 w-full hover:bg-muted/50 p-1 rounded"
                                     >
-                                        <Badge variant="outline">{tool.name}</Badge>
+                                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">{tool.name}</Badge>
                                         {showToolCalls[tool.id] ? (
                                             <ChevronUp className="h-3 w-3" />
                                         ) : (
                                             <ChevronDown className="h-3 w-3" />
                                         )}
-                                        <span className="text-xs text-muted-foreground">
+                                        <span className="text-[10px] text-muted-foreground">
                                             {tool.end_time ? 'Completed' : 'Running'}
                                         </span>
                                     </button>
@@ -165,20 +165,20 @@ export function ChatInterface() {
                             {/* Context Used */}
                             {msg.context_used && msg.context_used.length > 0 && (
                                 <Card className={cn(
-                                    "p-3 space-y-2 max-w-[85%]",
+                                    "p-2 space-y-1.5 max-w-[85%]",
                                     msg.role === 'user' ? "ml-auto" : ""
                                 )}>
                                     <button
                                         onClick={() => toggleContext(i)}
-                                        className="flex items-center gap-2 w-full hover:bg-muted/50 p-1 rounded"
+                                        className="flex items-center gap-1.5 w-full hover:bg-muted/50 p-1 rounded"
                                     >
-                                        <Badge variant="outline">Knowledge Base Context</Badge>
+                                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">Knowledge Base Context</Badge>
                                         {showContext[i] ? (
-                                            <ChevronUp className="h-4 w-4" />
+                                            <ChevronUp className="h-3 w-3" />
                                         ) : (
-                                            <ChevronDown className="h-4 w-4" />
+                                            <ChevronDown className="h-3 w-3" />
                                         )}
-                                        <span className="text-xs text-muted-foreground">
+                                        <span className="text-[10px] text-muted-foreground">
                                             {msg.context_used.length} source{msg.context_used.length !== 1 ? 's' : ''}
                                         </span>
                                     </button>
@@ -208,16 +208,17 @@ export function ChatInterface() {
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
-                    className="min-h-[80px] max-h-[200px] resize-none"
+                    className="min-h-[60px] max-h-[160px] resize-none text-[13px]"
                     disabled={isLoading}
                 />
                 <Button
                     type="submit"
                     disabled={isLoading || !message.trim()}
+                    className="text-[13px]"
                 >
                     {isLoading ? (
                         <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                             Sending...
                         </>
                     ) : (
