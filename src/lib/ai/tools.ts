@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
 import { Tool, ToolCall } from './agent-interfaces'
 import { Json } from '@/types/database'
+import { searchKnowledge as searchKnowledgeRAG } from './rag'
 
 export const tools: Record<string, Tool> = {
     createTicket: {
@@ -234,15 +235,8 @@ export async function executeToolCall(
             }
 
             case 'searchKnowledge': {
-                const { data, error } = await supabase
-                    .rpc('match_kb_embeddings', {
-                        query_embedding: String(args.query),
-                        similarity_threshold: 0.8,
-                        match_count: Number(args.limit) || 5
-                    })
-
-                if (error) throw error
-                toolCall.result = data
+                const results = await searchKnowledgeRAG(String(args.query), Number(args.limit) || 5)
+                toolCall.result = results
                 break
             }
 

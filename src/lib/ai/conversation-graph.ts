@@ -6,7 +6,7 @@ import { AgentAction, AgentResponse, RAGContext } from './agent-interfaces'
 import { searchKnowledge, formatContext } from './rag'
 import { executeToolCall } from './tools'
 import { recordKRAMetrics, recordRGQSMetrics } from './metrics'
-import { SYSTEM_PROMPT } from './prompts'
+import { SYSTEM_PROMPT, generateSystemPrompt } from './prompts'
 
 // Define our conversation state type
 interface ConversationState {
@@ -62,6 +62,42 @@ const nodes = {
             .pop()
         const wasOfferingTicket = lastAssistantMessage?.content.includes('Would you like me to create a support ticket')
 
+        // If this is a "yes" to a ticket creation offer, create the ticket
+        if (isAffirmative && wasOfferingTicket) {
+            // Get the user's previous message for context
+            const previousUserMessage = state.messages
+                .filter(msg => msg.role === 'user')
+                .slice(-2)[0]  // Get the message before the "yes"
+
+            if (previousUserMessage) {
+                const toolCall = await executeToolCall('createTicket', {
+                    title: 'Support Request',
+                    description: `User requested information about: ${previousUserMessage.content}`,
+                    priority: 'medium'
+                }, state.userId)
+
+                if (!toolCall.error) {
+                    const ticketResult = toolCall.result as { id: string, title: string }
+                    return {
+                        ...state,
+                        intent: 'affirmative',
+                        needsTicket: false,
+                        toolCalls: [...(state.toolCalls || []), toolCall],
+                        response: `I've created a ticket for you (ID: ${ticketResult.id}). A support agent will review your request and get back to you soon.`,
+                        metrics: {
+                            ...state.metrics,
+                            tool_usage: {
+                                tool: 'createTicket',
+                                success: true,
+                                ticket_id: ticketResult.id,
+                                was_explicit_request: true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         return {
             ...state,
             intent: isGreeting ? 'greeting'
@@ -77,21 +113,45 @@ const nodes = {
             return state
         }
 
+        const startTime = new Date().getTime()
         const context = await searchKnowledge(state.currentMessage)
+        const endTime = new Date().getTime()
+
+        const relevantThreshold = 0.7 // Threshold for considering chunks relevant
+
+        // Calculate metrics
+        const kra = {
+            query_text: state.currentMessage,
+            retrieved_chunks: context.length,
+            relevant_chunks: context.filter(c => c.similarity > relevantThreshold).length,
+            accuracy: Math.max(...context.map(c => c.similarity), 0), // Highest similarity score
+            relevance_score: context.length ?
+                context.reduce((acc, c) => acc + c.similarity, 0) / context.length :
+                0, // Average similarity
+            context_match: context.length > 0 ? 1 : 0 // Whether any context was found
+        }
+
+        // Record RAG search as a tool call
+        const toolCall = {
+            id: `rag-${Date.now()}`,
+            name: 'searchKnowledge',
+            start_time: new Date(startTime).toISOString(),
+            end_time: new Date(endTime).toISOString(),
+            result: {
+                context_found: context.length,
+                top_similarity: kra.accuracy,
+                query: state.currentMessage
+            }
+        }
+
         return {
             ...state,
             context,
             metrics: {
                 ...state.metrics,
-                kra: {
-                    query_text: state.currentMessage,
-                    retrieved_chunks: context.length,
-                    relevant_chunks: context.filter(c => c.similarity > 0.85).length,
-                    accuracy: context[0]?.similarity || 0,
-                    relevance_score: context.reduce((acc, c) => acc + c.similarity, 0) / (context.length || 1),
-                    context_match: context.length ? 1 : 0
-                }
-            }
+                kra
+            },
+            toolCalls: [...(state.toolCalls || []), toolCall]
         }
     },
 
@@ -207,8 +267,11 @@ const nodes = {
     generate_response: async (state: ConversationState) => {
         if (state.response) return state // Skip if we already have a response
 
+        // Get dynamic system prompt
+        const systemPrompt = await generateSystemPrompt()
+
         const messages = [
-            new SystemMessage(SYSTEM_PROMPT),
+            new SystemMessage(systemPrompt),
             new HumanMessage(
                 state.context.length
                     ? `Context from knowledge base:\n${formatContext(state.context)}\n\n` +
@@ -246,12 +309,11 @@ const nodes = {
 
     // Record metrics
     record_metrics: async (state: ConversationState) => {
-        const traceId = Math.random().toString(36).substring(7)
         if (state.metrics.kra) {
-            await recordKRAMetrics(traceId, state.ticketId, state.metrics.kra)
+            await recordKRAMetrics(state.ticketId, state.metrics.kra)
         }
         if (state.metrics.rgqs) {
-            await recordRGQSMetrics(traceId, state.ticketId, state.metrics.rgqs)
+            await recordRGQSMetrics(state.ticketId, state.metrics.rgqs)
         }
         return state
     }

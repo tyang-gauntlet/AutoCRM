@@ -28,7 +28,7 @@ case "$1" in
                 ;;
         esac
         ;;
-    "generate-embeddings")
+    "embeddings")
         echo "Generating embeddings..."
         curl -i --request POST 'http://localhost:54321/functions/v1/generate-embeddings'
         ;;

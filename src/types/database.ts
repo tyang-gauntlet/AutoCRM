@@ -911,7 +911,7 @@ export type Database = {
           }
       match_kb_embeddings: {
         Args: {
-          query_embedding: string
+          query_embedding: number[]
           similarity_threshold?: number
           match_count?: number
         }

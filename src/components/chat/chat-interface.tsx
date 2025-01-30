@@ -187,11 +187,8 @@ export function ChatInterface() {
                                         <div className="text-xs text-muted-foreground mt-2 space-y-2">
                                             {msg.context_used.map((ctx, idx) => (
                                                 <div key={idx} className="p-2 bg-muted rounded">
-                                                    <div className="font-medium text-foreground mb-1">
+                                                    <div className="font-medium text-foreground">
                                                         {ctx.title}
-                                                    </div>
-                                                    <div className="whitespace-pre-wrap break-words">
-                                                        {ctx.content}
                                                     </div>
                                                 </div>
                                             ))}
