@@ -2,6 +2,8 @@
 drop policy if exists "Users can view their own profile" on public.profiles;
 drop policy if exists "Admins can view all profiles" on public.profiles;
 drop policy if exists "Users can update their own profile" on public.profiles;
+drop policy if exists "Authenticated users can create own profile" on public.profiles;
+drop policy if exists "Authenticated users can view all profiles" on public.profiles;
 drop policy if exists "Authenticated users can view interactions" on public.interactions;
 drop policy if exists "Authenticated users can insert interactions" on public.interactions;
 drop policy if exists "Authenticated users can update interactions" on public.interactions;
@@ -17,6 +19,8 @@ drop policy if exists "Anyone can view articles" on public.kb_articles;
 drop policy if exists "Only admins can modify articles" on public.kb_articles;
 drop policy if exists "Anyone can view embeddings" on public.kb_embeddings;
 drop policy if exists "Only admins can modify embeddings" on public.kb_embeddings;
+drop policy if exists "Anyone can view ticket tools" on public.ticket_tools;
+drop policy if exists "Only admins can modify ticket tools" on public.ticket_tools;
 
 -- RLS Policies for profiles
 create policy "Users can view their own profile"
@@ -34,6 +38,14 @@ create policy "Reviewers can view all profiles"
 create policy "Authenticated users can view all profiles"
   on public.profiles for select
   using (auth.role() = 'authenticated');
+
+create policy "Authenticated users can create own profile"
+  on public.profiles for insert
+  with check (
+    auth.role() = 'authenticated'
+    and auth.uid() = id
+    and (role = 'user' or is_admin(auth.uid()))
+  );
 
 create policy "Users can update their own profile"
   on public.profiles for update
@@ -90,6 +102,15 @@ begin
     and tablename = 'ai_metrics'
   ) then
     alter publication supabase_realtime add table public.ai_metrics;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' 
+    and schemaname = 'public' 
+    and tablename = 'ticket_tools'
+  ) then
+    alter publication supabase_realtime add table public.ticket_tools;
   end if;
 end $$;
 
@@ -189,4 +210,13 @@ create policy "Only admins can update embeddings"
 
 create policy "Only admins can delete embeddings"
   on public.kb_embeddings for delete
+  using (is_admin(auth.uid()));
+
+-- Ticket tools policies
+create policy "Anyone can view ticket tools"
+  on public.ticket_tools for select
+  using (true);
+
+create policy "Only admins can modify ticket tools"
+  on public.ticket_tools for all
   using (is_admin(auth.uid())); 

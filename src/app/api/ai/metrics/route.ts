@@ -2,17 +2,19 @@ import { supabase } from '@/lib/supabase'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { Client } from 'langsmith'
-
+import { Database } from '@/types/database'
 
 const langsmith = new Client({
     apiUrl: process.env.LANGSMITH_API_URL,
     apiKey: process.env.LANGSMITH_API_KEY,
 })
 
+export const runtime = 'edge'
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: Request) {
     try {
         const { data: { session } } = await supabase.auth.getSession()
-
 
         if (!session) {
             return NextResponse.json(
@@ -81,38 +83,79 @@ export async function POST(request: Request) {
     }
 }
 
+type MetricAggregate = {
+    count: number
+    total_score: number
+    avg_score: number
+}
+
+type MetricAggregates = Record<string, MetricAggregate>
+
 export async function GET(request: Request) {
     try {
-        const { searchParams } = new URL(request.url)
-        const ticket_id = searchParams.get('ticket_id')
-        const type = searchParams.get('type')
-        const timeframe = searchParams.get('timeframe') || '24 hours'
+        const { data: { session }, error: authError } = await supabase.auth.getSession()
 
-        if (!ticket_id || !type) {
+        if (authError || !session) {
             return NextResponse.json(
-                { error: 'Missing required parameters' },
-                { status: 400 }
+                { error: 'Unauthorized' },
+                { status: 401 }
             )
         }
 
-        // TODO: Add RPC call to get average metrics
-        // const { data, error } = await supabase
+        // Get query parameters
+        const { searchParams } = new URL(request.url)
+        const ticketId = searchParams.get('ticketId')
+        const type = searchParams.get('type')
+        const from = searchParams.get('from')
+        const to = searchParams.get('to')
 
-        //     .rpc('get_average_metrics', {
-        //         p_ticket_id: ticket_id,
-        //         p_type: type,
-        //         p_timeframe: timeframe
-        //     })
+        // Build query
+        let query = supabase.from('ai_metrics').select('*')
 
-        // if (error) throw error
+        if (ticketId) {
+            query = query.eq('ticket_id', ticketId)
+        }
+        if (type) {
+            query = query.eq('type', type)
+        }
+        if (from) {
+            query = query.gte('created_at', from)
+        }
+        if (to) {
+            query = query.lte('created_at', to)
+        }
 
-        return NextResponse.json({ success: true, data: [] })
+        // Execute query
+        const { data: metrics, error } = await query
 
+        if (error) {
+            throw error
+        }
 
+        // Calculate aggregates
+        const aggregates = (metrics || []).reduce((acc: MetricAggregates, metric) => {
+            const metricType = metric.type
+            if (!acc[metricType]) {
+                acc[metricType] = {
+                    count: 0,
+                    total_score: 0,
+                    avg_score: 0
+                }
+            }
+            acc[metricType].count++
+            acc[metricType].total_score += metric.score
+            acc[metricType].avg_score = acc[metricType].total_score / acc[metricType].count
+            return acc
+        }, {})
+
+        return NextResponse.json({
+            metrics,
+            aggregates
+        })
     } catch (error) {
-        console.error('Error fetching metrics:', error)
+        console.error('Error getting metrics:', error)
         return NextResponse.json(
-            { error: 'Failed to fetch metrics' },
+            { error: 'Internal server error' },
             { status: 500 }
         )
     }

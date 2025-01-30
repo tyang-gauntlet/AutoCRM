@@ -9,11 +9,10 @@ Develop a Customer Relationship Management (CRM) system to manage customer data,
 - Supabase 
 - Shadcn (NOT SHADCN UI) / Radix UI
 - Lucid Icons
-- AWS Amplify
-- OpenAI API / Anthropic API (for LLM integration)
+- OpenAI API (for LLM integration)
 - pgvector (for Supabase vector embeddings)
-- Vercel AI SDK
-- LangChain / LlamaIndex (for RAG implementation)
+- Vercel AI SDK?
+- LangChain (for RAG implementation)
 
 Ensure you use the latest version of each technology.
 
@@ -61,7 +60,7 @@ Ensure you use the latest version of each technology.
 
 - Knowledge Base Management
   - Rich text knowledge base editor
-  - Document upload and parsing (PDF, DOC, DOCX, MD)
+  - Document upload and parsing (MD)
   - Content approval workflow
   - Version control and change tracking
   - Analytics and maintenance tools
@@ -171,7 +170,6 @@ Ensure you use the latest version of each technology.
 
 ## Implementation Phases
 1. Foundation:
-   - Set up Supabase Edge Functions for AI ops
    - Implement base LLM client with fallback
    - Create PII detection pipeline
 
@@ -192,7 +190,6 @@ Ensure you use the latest version of each technology.
 
 5. Tool Integration:
    - Create tool manifest system
-   - Add OAuth2 support
    - Implement usage monitoring
 
 

@@ -65,7 +65,7 @@
 ### Content Creation and Upload
 1. Multiple Input Methods
    - Rich text editor for direct entry
-   - Document upload (PDF, DOC, DOCX, MD)
+   - Document upload (MD)
    - URL scraping for external resources
    - Bulk import functionality
 
@@ -124,7 +124,7 @@
 
 ### Phase 1: Foundation
 1. Set up Vector Store in Supabase for embeddings
-2. Implement basic LLM integration with OpenAI/Anthropic
+2. Implement basic LLM integration with OpenAI
 3. Create knowledge embedding pipeline
 4. Add AI response tracking
 

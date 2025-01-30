@@ -13,7 +13,7 @@ export const config = {
 }
 
 // Define public routes that don't require authentication
-const publicRoutes = new Set(['/login', '/signup', '/forgot-password', '/kb', '/api/health'])
+const publicRoutes = new Set(['/', '/login', '/signup', '/forgot-password', '/kb', '/api/health'])
 
 type UserRole = 'admin' | 'reviewer' | 'user'
 

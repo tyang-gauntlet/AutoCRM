@@ -1,0 +1,179 @@
+# AI Chat Agent Implementation Plan
+
+## Overview
+This document outlines the implementation plan for the AI chat agent that will handle customer support tickets with RAG capabilities and tool integration, using LangSmith for monitoring and metrics.
+
+## Architecture Decision
+
+### 1. Move from Supabase Edge Function to Next.js API Route
+- Current chat implementation in Supabase Edge Function is too resource-constrained
+- Next.js API routes provide better performance and flexibility for complex operations
+- Easier integration with LangSmith and external tools
+- Better error handling and monitoring capabilities
+
+### 2. Database Schema Updates
+- `tickets` table
+  - status: enum ('open', 'in_review', 'closed')
+  - priority: enum ('low', 'medium', 'high')
+  - assigned_to: uuid (reviewer ID)
+  - metadata: jsonb (for AI routing data)
+
+- `ticket_interactions` table
+  - ticket_id: uuid (foreign key)
+  - message: text
+  - role: enum ('user', 'assistant')
+  - tool_calls: jsonb
+  - context_used: jsonb
+  - metrics: jsonb
+
+- `ticket_tools` table
+  - name: string
+  - description: text
+  - parameters: jsonb
+  - required_role: string
+  - enabled: boolean
+
+### 3. Components Structure
+
+#### API Layer (`src/app/api`)
+- `chat/route.ts` - Main chat endpoint
+- `tickets/route.ts` - Ticket management endpoints
+- `tools/[tool]/route.ts` - Tool-specific endpoints
+
+#### Core AI Components (`src/lib/ai`)
+- `agent.ts` - Core agent implementation
+- `tools.ts` - Tool definitions and handlers
+- `rag.ts` - RAG implementation
+- `metrics.ts` - LangSmith integration
+
+#### React Components (`src/components/chat`)
+- `ChatProvider.tsx` - Context provider for chat state
+- `ChatInterface.tsx` - Main chat UI
+- `ToolResponse.tsx` - Tool action results display
+- `StatusIndicator.tsx` - Chat and tool status display
+
+### 4. Tool Implementation
+
+#### Required Tools
+1. Ticket Management
+   ```typescript
+   interface TicketTools {
+     createTicket: (description: string, priority?: string) => Promise<string>;
+     elevateTicket: (ticketId: string, reason: string) => Promise<void>;
+     closeTicket: (ticketId: string, resolution: string) => Promise<void>;
+   }
+   ```
+
+2. Knowledge Base
+   ```typescript
+   interface KBTools {
+     searchKnowledge: (query: string) => Promise<Document[]>;
+     suggestArticles: (context: string) => Promise<Article[]>;
+   }
+   ```
+
+3. Reviewer Tools
+   ```typescript
+   interface ReviewerTools {
+     assignReviewer: (ticketId: string, reviewerId: string) => Promise<void>;
+     addNote: (ticketId: string, note: string) => Promise<void>;
+   }
+   ```
+
+### 5. LangSmith Integration
+
+#### Metrics to Track
+1. Knowledge Retrieval Accuracy (KRA)
+   ```typescript
+   interface KRAMetrics {
+     query_text: string;           // The user's original query
+     retrieved_chunks: number;     // Number of chunks retrieved
+     relevant_chunks: number;      // Number of chunks above relevance threshold
+     accuracy: number;            // Highest similarity score (0-1)
+     relevance_score: number;     // Average similarity of relevant chunks (0-1)
+     context_match: number;       // Whether any context was found (0/1)
+   }
+   ```
+
+2. Response Generation Quality Score (RGQS)
+   ```typescript
+   interface RGQSMetrics {
+     response_text: string;       // The generated response
+     overall_quality: number;     // Overall response quality (0-1)
+     relevance: number;          // Response relevance to query (0-1)
+     accuracy: number;           // Factual accuracy based on context (0-1)
+     tone: number;              // Professional tone adherence (0-1)
+   }
+   ```
+
+These metrics will be tracked per interaction and aggregated for:
+- Per-ticket analysis
+- Daily/weekly/monthly trends
+- Agent performance evaluation
+- Knowledge base quality assessment
+
+#### Traces Structure
+```typescript
+interface ChatTrace {
+  run_id: string;
+  parent_run_id?: string;
+  tool_calls: ToolCall[];
+  rag_context: RAGMetrics;
+  response_metrics: ResponseMetrics;
+  customer_feedback?: Feedback;
+}
+```
+
+### 6. Implementation Phases
+
+#### Phase 1: Core Chat Implementation
+1. Set up Next.js API route for chat
+2. Implement basic agent with RAG
+3. Add LangSmith integration
+4. Create base UI components
+
+#### Phase 2: Tool Integration
+1. Implement ticket management tools
+2. Add knowledge base tools
+3. Create reviewer tools
+4. Add tool response handling in UI
+
+#### Phase 3: Advanced Features
+1. Add streaming responses
+2. Implement conversation memory
+3. Add context-aware suggestions
+4. Create feedback loop
+
+#### Phase 4: Optimization
+1. Add response caching
+2. Implement batch processing
+3. Add error recovery
+4. Optimize performance
+
+### 7. Security Considerations
+- Implement rate limiting
+- Add request validation
+- Sanitize user input
+- Validate tool permissions
+- Handle PII appropriately
+
+### 8. Testing Strategy
+- Unit tests for tools
+- Integration tests for agent
+- E2E tests for chat flow
+- Performance testing
+- Security testing
+
+### 9. Monitoring and Analytics
+- Set up LangSmith dashboards
+- Implement error tracking
+- Add performance monitoring
+- Create usage analytics
+- Set up alerting
+
+## Next Steps
+1. Create database migrations
+2. Set up Next.js API routes
+3. Implement core agent logic
+4. Add basic tool support
+5. Set up LangSmith integration 

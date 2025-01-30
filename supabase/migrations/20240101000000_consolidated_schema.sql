@@ -114,6 +114,9 @@ create table public.tickets (
     assigned_to uuid references public.profiles(id) on delete set null,
     created_by uuid references public.profiles(id) on delete set null,
     ai_handled boolean default false,
+    ai_metadata jsonb default '{}'::jsonb,
+    tool_calls jsonb[] default array[]::jsonb[],
+    context_used jsonb default '{}'::jsonb,
     metadata jsonb default '{}'::jsonb,
     created_at timestamptz default timezone('utc'::text, now()) not null,
     updated_at timestamptz default timezone('utc'::text, now()) not null
@@ -125,6 +128,9 @@ create table public.ticket_messages (
     content text not null,
     sender_id uuid references public.profiles(id) on delete set null,
     is_ai boolean default false,
+    tool_calls jsonb[] default array[]::jsonb[],
+    context_used jsonb default '{}'::jsonb,
+    metrics jsonb default '{}'::jsonb,
     metadata jsonb default '{}'::jsonb,
     created_at timestamptz default timezone('utc'::text, now()) not null
 );
@@ -186,6 +192,9 @@ create table public.ai_metrics (
     ticket_id uuid references public.tickets(id) on delete cascade,
     type text not null check (type in ('kra', 'rgqs')),
     score float not null check (score >= 0 and score <= 1),
+    kra_metrics jsonb default '{}'::jsonb,
+    rgqs_metrics jsonb default '{}'::jsonb,
+    tool_metrics jsonb default '{}'::jsonb,
     metadata jsonb default '{}'::jsonb,
     created_at timestamptz default timezone('utc'::text, now()) not null,
     created_by uuid references public.profiles(id) on delete set null
@@ -207,6 +216,19 @@ create table public.interactions (
     user_id uuid references public.profiles(id) on delete set null,
     type text not null,
     content text not null,
+    metadata jsonb default '{}'::jsonb,
+    created_at timestamptz default timezone('utc'::text, now()) not null,
+    updated_at timestamptz default timezone('utc'::text, now()) not null
+);
+
+-- Create ticket_tools table
+create table if not exists public.ticket_tools (
+    id uuid default gen_random_uuid() primary key,
+    name text not null unique,
+    description text not null,
+    parameters jsonb not null,
+    required_role text not null check (required_role in ('admin', 'reviewer', 'user')),
+    enabled boolean default true,
     metadata jsonb default '{}'::jsonb,
     created_at timestamptz default timezone('utc'::text, now()) not null,
     updated_at timestamptz default timezone('utc'::text, now()) not null
@@ -250,6 +272,7 @@ alter table public.kb_articles enable row level security;
 alter table public.ai_metrics enable row level security;
 alter table public.kb_embeddings enable row level security;
 alter table public.interactions enable row level security;
+alter table public.ticket_tools enable row level security;
 
 -- Add RLS policies (continued in next migration)
 
@@ -270,4 +293,12 @@ $$ language plpgsql security definer;
 -- Run the sync immediately
 select sync_user_roles();
 
--- Remove duplicate RLS enabling section 
+-- Remove duplicate RLS enabling section
+
+-- Create indexes for new fields
+create index if not exists tickets_ai_metadata_idx on public.tickets using gin(ai_metadata);
+create index if not exists ticket_messages_tool_calls_idx on public.ticket_messages using gin(tool_calls);
+create index if not exists ticket_tools_name_idx on public.ticket_tools(name);
+create index if not exists ai_metrics_kra_idx on public.ai_metrics using gin(kra_metrics);
+create index if not exists ai_metrics_rgqs_idx on public.ai_metrics using gin(rgqs_metrics);
+create index if not exists ai_metrics_tool_idx on public.ai_metrics using gin(tool_metrics); 
