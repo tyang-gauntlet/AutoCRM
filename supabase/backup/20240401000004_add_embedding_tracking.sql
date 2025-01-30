@@ -1,16 +1,6 @@
--- Add has_embeddings column to kb_articles if not exists
+-- Add has_embeddings column to kb_articles
 ALTER TABLE public.kb_articles
-ADD COLUMN IF NOT EXISTS has_embeddings boolean DEFAULT false;
-
--- Create kb_embeddings table if it doesn't exist
-CREATE TABLE IF NOT EXISTS public.kb_embeddings (
-    id bigint generated always as identity primary key,
-    article_id uuid references public.kb_articles(id) on delete cascade,
-    content text not null,
-    embedding vector(1536) not null,
-    metadata jsonb default '{}'::jsonb,
-    created_at timestamptz default timezone('utc'::text, now()) not null
-);
+ADD COLUMN has_embeddings boolean DEFAULT false;
 
 -- Create function to update has_embeddings based on kb_embeddings
 CREATE OR REPLACE FUNCTION update_article_has_embeddings()
@@ -28,9 +18,6 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
--- Drop trigger if exists to avoid errors
-DROP TRIGGER IF EXISTS maintain_has_embeddings ON public.kb_embeddings;
 
 -- Create trigger to maintain has_embeddings
 CREATE TRIGGER maintain_has_embeddings

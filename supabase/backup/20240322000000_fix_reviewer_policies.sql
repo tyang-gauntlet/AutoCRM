@@ -7,14 +7,6 @@ drop policy if exists "Users can update tickets" on public.tickets;
 drop policy if exists "Ticket update policy" on public.tickets;
 drop policy if exists "Only admins can delete tickets" on public.tickets;
 drop policy if exists "Admins can delete tickets" on public.tickets;
-drop policy if exists "Ticket deletion policy" on public.tickets;
-drop policy if exists "Ticket viewing policy" on public.tickets;
-drop policy if exists "Ticket creation policy" on public.tickets;
-drop policy if exists "Ticket update policy" on public.tickets;
-drop policy if exists "Ticket deletion policy" on public.tickets;
-drop policy if exists "Message viewing policy" on public.ticket_messages;
-drop policy if exists "Message creation policy" on public.ticket_messages;
-
 
 -- Drop all existing ticket message policies
 drop policy if exists "Users can view messages of accessible tickets" on public.ticket_messages;

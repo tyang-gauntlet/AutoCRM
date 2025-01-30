@@ -1,6 +1,7 @@
 -- Enable required extensions
-create extension if not exists "pg_trgm";
-create extension if not exists "vector";
+create extension if not exists "pg_trgm" with schema "public";
+create extension if not exists "vector" with schema "public";
+create extension if not exists "pg_net" with schema "public";
 
 -- Create updated_at trigger function
 create or replace function update_updated_at_column()
@@ -182,7 +183,8 @@ create table public.kb_articles (
     created_by uuid references public.profiles(id) on delete set null,
     updated_by uuid references public.profiles(id) on delete set null,
     approved_by uuid references public.profiles(id) on delete set null,
-    version integer default 1
+    version integer default 1,
+    has_embeddings boolean default false
 );
 
 -- Create AI metrics tables
@@ -200,6 +202,7 @@ create table public.ai_metrics (
     created_by uuid references public.profiles(id) on delete set null
 );
 
+-- Create kb_embeddings table first
 create table public.kb_embeddings (
     id bigint generated always as identity primary key,
     article_id uuid references public.kb_articles(id) on delete cascade,
@@ -301,4 +304,35 @@ create index if not exists ticket_messages_tool_calls_idx on public.ticket_messa
 create index if not exists ticket_tools_name_idx on public.ticket_tools(name);
 create index if not exists ai_metrics_kra_idx on public.ai_metrics using gin(kra_metrics);
 create index if not exists ai_metrics_rgqs_idx on public.ai_metrics using gin(rgqs_metrics);
-create index if not exists ai_metrics_tool_idx on public.ai_metrics using gin(tool_metrics); 
+create index if not exists ai_metrics_tool_idx on public.ai_metrics using gin(tool_metrics);
+
+-- Create function to update has_embeddings based on kb_embeddings
+create or replace function update_article_has_embeddings()
+returns trigger as $$
+begin
+    -- Update has_embeddings when embeddings are added/removed
+    update public.kb_articles
+    set has_embeddings = exists (
+        select 1 
+        from public.kb_embeddings 
+        where article_id = NEW.article_id
+    )
+    where id = NEW.article_id;
+    
+    return NEW;
+end;
+$$ language plpgsql;
+
+-- Create trigger to maintain has_embeddings
+create trigger maintain_has_embeddings
+    after insert or delete on public.kb_embeddings
+    for each row
+    execute function update_article_has_embeddings();
+
+-- Update existing articles based on kb_embeddings
+update public.kb_articles
+set has_embeddings = exists (
+    select 1 
+    from public.kb_embeddings 
+    where article_id = kb_articles.id
+); 
