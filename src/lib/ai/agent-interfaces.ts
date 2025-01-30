@@ -29,11 +29,14 @@ export type RGQSMetrics = {
 export interface ToolCall {
     id: string
     name: string
-    arguments: Record<string, unknown>
     start_time: string
     end_time?: string
     error?: string
-    result?: unknown
+    result?: {
+        id?: string
+        title?: string
+        [key: string]: any
+    } | any[] | string | number | boolean | null
 }
 
 export type RAGContext = {

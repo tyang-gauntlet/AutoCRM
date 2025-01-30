@@ -4,13 +4,13 @@ import React, { useCallback } from 'react'
 import { Card } from '@/components/ui/card'
 import { ChatInterface } from '@/components/chat/chat-interface'
 import { Button } from '@/components/ui/button'
-import { PlusCircle } from 'lucide-react'
+import { RotateCcw } from 'lucide-react'
 import { useChat } from '@/contexts/chat-context'
 
 export function ChatUI() {
     const { clearMessages } = useChat()
 
-    const handleNewChat = useCallback(() => {
+    const handleStartOver = useCallback(() => {
         clearMessages()
     }, [clearMessages])
 
@@ -23,11 +23,10 @@ export function ChatUI() {
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={handleNewChat}
+                            onClick={handleStartOver}
                             className="gap-2"
                         >
-                            <PlusCircle className="h-4 w-4" />
-                            New Chat
+                            <RotateCcw className="h-4 w-4" />
                         </Button>
                     </div>
                     <ChatInterface />

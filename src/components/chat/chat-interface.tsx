@@ -120,13 +120,47 @@ export function ChatInterface() {
                                             )}
                                             {tool.result !== undefined && tool.result !== null && (
                                                 <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
-                                                    {Array.isArray(tool.result) ? JSON.stringify(tool.result, null, 2) : String(tool.result)}
+                                                    {tool.name === 'createTicket' && typeof tool.result === 'object' && tool.result !== null ? (
+                                                        JSON.stringify({
+                                                            ticket_id: (tool.result as { id: string }).id,
+                                                            title: (tool.result as { title: string }).title,
+                                                            status: 'open'
+                                                        }, null, 2)
+                                                    ) : (
+                                                        Array.isArray(tool.result)
+                                                            ? JSON.stringify(tool.result, null, 2)
+                                                            : typeof tool.result === 'object'
+                                                                ? JSON.stringify(tool.result, null, 2)
+                                                                : String(tool.result)
+                                                    )}
                                                 </pre>
                                             )}
                                         </Fragment>
                                     )}
                                 </Card>
                             ))}
+
+                            {/* Tool Usage Metrics */}
+                            {msg.metrics?.tool_usage && (
+                                <Card className={cn(
+                                    "p-3 space-y-2 max-w-[85%]",
+                                    msg.role === 'user' ? "ml-auto" : ""
+                                )}>
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="outline">Tool Usage</Badge>
+                                        <span className="text-xs text-muted-foreground">
+                                            {msg.metrics.tool_usage.tool}
+                                        </span>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground mt-2">
+                                        <div className="p-2 bg-muted rounded">
+                                            <pre className="whitespace-pre-wrap break-words">
+                                                {JSON.stringify(msg.metrics.tool_usage, null, 2)}
+                                            </pre>
+                                        </div>
+                                    </div>
+                                </Card>
+                            )}
 
                             {/* Context Used */}
                             {msg.context_used && msg.context_used.length > 0 && (

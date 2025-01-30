@@ -142,7 +142,6 @@ export async function executeToolCall(
     const toolCall: ToolCall = {
         id: nanoid(),
         name: toolName,
-        arguments: args,
         start_time: new Date().toISOString()
     }
 

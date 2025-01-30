@@ -21,6 +21,7 @@ interface ConversationState {
     metrics: {
         kra?: any
         rgqs?: any
+        tool_usage?: any
     }
     ticketDetails?: {
         title: string
@@ -98,35 +99,98 @@ const nodes = {
     analyze_ticket_need: async (state: ConversationState) => {
         if (state.intent === 'greeting' || state.response) return { ...state, needsTicket: false }
 
-        // For general feature inquiries, don't immediately suggest a ticket
-        if (state.currentMessage.toLowerCase().includes('feature') ||
-            state.currentMessage.toLowerCase().includes('can you') ||
-            state.currentMessage.toLowerCase().includes('what do you')) {
+        // Build conversation history for analysis
+        const conversationHistory = state.messages.map(msg =>
+            `${msg.role.toUpperCase()}: ${msg.content}`
+        ).join('\n')
+
+        // Create analysis prompt for ticket creation decision
+        const ticketAnalysisMessages = [
+            new SystemMessage(
+                `You are a support ticket analyzer. Your job is to determine if a conversation warrants creating a support ticket.
+                
+                IMPORTANT GUIDELINES:
+                1. Any direct request to create/make a ticket should ALWAYS result in ticket creation
+                   Examples that should create tickets:
+                   - "can you make a ticket about X"
+                   - "create a ticket for X"
+                   - "I need a ticket for X"
+                   - "open a ticket about X"
+                
+                2. For other conversations, consider these factors:
+                   - Is this a specific issue or request that needs tracking?
+                   - Has enough context been provided to create a meaningful ticket?
+                   - Is this a general inquiry vs. an actual support need?
+                   - Would a ticket help in resolving the user's request?
+                
+                3. Don't ask for more information if:
+                   - User explicitly requests ticket creation
+                   - The topic is clear, even if details are minimal
+                
+                Respond in JSON format only:
+                {
+                    "needs_ticket": boolean,
+                    "reason": string,
+                    "title": string | null,
+                    "description": string | null,
+                    "priority": "low" | "medium" | "high" | "urgent" | null,
+                    "is_explicit_request": boolean
+                }`
+            ),
+            new HumanMessage(
+                `Current conversation:\n${conversationHistory}\n\nLatest message: ${state.currentMessage}\n\n` +
+                `Analyze if this conversation warrants creating a support ticket.`
+            )
+        ]
+
+        const ticketAnalysis = await model.invoke(ticketAnalysisMessages)
+        let analysis
+        try {
+            analysis = JSON.parse(ticketAnalysis.content.toString())
+        } catch (e) {
+            console.error('Failed to parse ticket analysis:', e)
             return { ...state, needsTicket: false }
         }
 
-        if (state.intent === 'affirmative') {
-            const lastAssistantMessage = state.messages
-                .filter(msg => msg.role === 'assistant')
-                .pop()
+        if (analysis.needs_ticket) {
+            // For explicit requests, create ticket immediately
+            // For other cases, create if we have enough context
+            if (analysis.is_explicit_request || analysis.description) {
+                const ticketDetails = {
+                    title: analysis.title || 'Support Request',
+                    description: analysis.description || `User requested ticket about: ${state.currentMessage}`,
+                    priority: analysis.priority || 'medium'
+                }
 
-            // Only create ticket if we explicitly offered one
-            if (!lastAssistantMessage?.content.includes('create a support ticket')) {
-                return { ...state, needsTicket: false }
-            }
+                const toolCall = await executeToolCall('createTicket', {
+                    title: ticketDetails.title,
+                    description: ticketDetails.description,
+                    priority: ticketDetails.priority
+                }, state.userId)
 
-            // Find original request
-            const originalRequest = state.messages
-                .filter(msg => msg.role === 'user')
-                .slice(-2)[0]?.content || state.currentMessage
-
-            return {
-                ...state,
-                needsTicket: true,
-                ticketDetails: {
-                    title: 'Support Request: ' + originalRequest.slice(0, 100),
-                    description: originalRequest,
-                    priority: state.context.length ? 'medium' : 'high'
+                if (!toolCall.error) {
+                    const ticketResult = toolCall.result as { id: string, title: string }
+                    return {
+                        ...state,
+                        needsTicket: false, // Set to false since we've already created it
+                        toolCalls: [...(state.toolCalls || []), toolCall],
+                        response: `Ticket created: ${ticketResult.id}`,
+                        metrics: {
+                            ...state.metrics,
+                            tool_usage: {
+                                tool: 'createTicket',
+                                success: true,
+                                ticket_id: ticketResult.id,
+                                was_explicit_request: analysis.is_explicit_request
+                            }
+                        }
+                    }
+                }
+            } else {
+                // If we need more context, ask for it
+                return {
+                    ...state,
+                    response: "Could you provide more details about your request? This will help us create a more specific ticket for you."
                 }
             }
         }
@@ -134,46 +198,24 @@ const nodes = {
         return { ...state, needsTicket: false }
     },
 
-    // Create ticket if needed
+    // Remove handle_ticket since we now create tickets immediately in analyze_ticket_need
     handle_ticket: async (state: ConversationState) => {
-        if (!state.needsTicket || !state.ticketDetails) return state
-
-        const toolCall = await executeToolCall('createTicket', {
-            title: state.ticketDetails.title,
-            description: state.ticketDetails.description,
-            priority: state.ticketDetails.priority
-        }, state.userId)
-
-        if (!toolCall.error) {
-            const ticketResult = toolCall.result as { id: string, title: string }
-            return {
-                ...state,
-                toolCalls: [...state.toolCalls, toolCall],
-                response: `I've created a support ticket for you: /tickets/${ticketResult.id} - "${ticketResult.title}". A support representative will assist you shortly.`
-            }
-        }
-
         return state
     },
 
-    // Generate response
+    // Update generate_response to handle tool usage display
     generate_response: async (state: ConversationState) => {
         if (state.response) return state // Skip if we already have a response
 
         const messages = [
             new SystemMessage(SYSTEM_PROMPT),
-            ...state.messages.map(msg =>
-                msg.role === 'user'
-                    ? new HumanMessage(msg.content)
-                    : new SystemMessage(msg.content)
-            ),
             new HumanMessage(
                 state.context.length
-                    ? `Context from knowledge base:\n${formatContext(state.context)}\n\nUser message: ${state.currentMessage}`
-                    : `No relevant context found in knowledge base. Current features I can help with:\n` +
-                    `• Customer support and ticket management\n` +
-                    `• Knowledge base access and information\n` +
-                    `• General system navigation and usage\n\n` +
+                    ? `Context from knowledge base:\n${formatContext(state.context)}\n\n` +
+                    (state.metrics?.tool_usage ? `Tool usage:\n${JSON.stringify(state.metrics.tool_usage, null, 2)}\n\n` : '') +
+                    `User message: ${state.currentMessage}`
+                    : `No relevant context found in knowledge base.\n` +
+                    (state.metrics?.tool_usage ? `Tool usage:\n${JSON.stringify(state.metrics.tool_usage, null, 2)}\n\n` : '') +
                     `User message: ${state.currentMessage}`
             )
         ]
@@ -181,11 +223,9 @@ const nodes = {
         const response = await model.invoke(messages)
         let responseText = response.content.toString()
 
-        // Make responses more conversational
-        if (responseText.length > 500 && !responseText.includes('•')) {
-            responseText = responseText.slice(0, 500) + "... I can provide more specific details about any of these points - what would you like to know more about?"
-        } else if (responseText.length > 800) {
-            responseText = responseText.slice(0, 800) + "... I can elaborate on any of these points - just let me know what interests you most!"
+        // If a ticket was created, keep the response simple
+        if (state.metrics?.tool_usage?.tool === 'createTicket') {
+            responseText = `Ticket created with ID: ${state.metrics.tool_usage.ticket_id}`
         }
 
         return {
