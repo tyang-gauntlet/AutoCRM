@@ -11,48 +11,46 @@ const embeddings = new OpenAIEmbeddings({
 
 export async function searchKnowledge(query: string, limit = 5): Promise<RAGContext[]> {
     try {
+        // Check for direct matches first
         console.log('RAG Search - Starting search for query:', query)
-
-        // First, check if we have any articles about this topic directly
         console.log('RAG Search - Checking for direct matches first')
-        const { data: directMatches, error: directError } = await supabase
-            .from('kb_articles')
-            .select('id, title, content')
-            .eq('status', 'published')
-            .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
-            .limit(limit)
 
-        if (directError) {
-            console.error('RAG Search - Direct search error:', directError)
-        } else {
-            console.log('RAG Search - Direct matches found:', directMatches?.length || 0)
-            if (directMatches?.length) {
-                console.log('RAG Search - Direct match titles:', directMatches.map(m => m.title))
-            }
-        }
+        // Get direct matches count
+        const { count: directMatchCount, error: countError } = await supabase
+            .from('kb_embeddings')
+            .select('*', { count: 'exact', head: true })
+            .textSearch('content', query)
+
+        console.log('RAG Search - Direct matches found:', directMatchCount)
 
         // Generate embedding for query
         console.log('RAG Search - Generating embedding for query')
-        const queryEmbedding = await embeddings.embedQuery(query)
+        const queryEmbedding = await generateEmbedding(query)
+        if (!queryEmbedding) {
+            throw new Error('Failed to generate query embedding')
+        }
         console.log('RAG Search - Embedding generated, length:', queryEmbedding.length)
 
-        // Verify embedding format
-        if (!Array.isArray(queryEmbedding) || queryEmbedding.length !== 1536) {
-            console.error('RAG Search - Invalid embedding format:', {
-                isArray: Array.isArray(queryEmbedding),
-                length: queryEmbedding?.length
-            })
-            throw new Error(`Invalid embedding format: expected array of 1536 numbers, got ${typeof queryEmbedding} of length ${queryEmbedding?.length}`)
-        }
+        // Log query embedding details for debugging
+        console.log('RAG Search - Query embedding sample:', queryEmbedding.slice(0, 5), '...')
+        console.log('RAG Search - Query embedding details:', {
+            type: typeof queryEmbedding,
+            isArray: Array.isArray(queryEmbedding),
+            length: queryEmbedding.length,
+            sample: queryEmbedding.slice(0, 5),
+            hasNaN: queryEmbedding.some(isNaN),
+            min: Math.min(...queryEmbedding),
+            max: Math.max(...queryEmbedding)
+        })
 
-        // Check if we have any embeddings in the database
+        // Check for existing embeddings
         console.log('RAG Search - Checking for existing embeddings')
-        const { count: embeddingCount, error: countError } = await supabase
+        const { count: embeddingCount, error: embeddingCountError } = await supabase
             .from('kb_embeddings')
             .select('*', { count: 'exact', head: true })
 
-        if (countError) {
-            console.error('RAG Search - Error checking embeddings count:', countError)
+        if (embeddingCountError) {
+            console.error('RAG Search - Error checking embeddings count:', embeddingCountError)
         } else {
             console.log('RAG Search - Total embeddings in database:', embeddingCount)
 
@@ -70,90 +68,77 @@ export async function searchKnowledge(query: string, limit = 5): Promise<RAGCont
                     has_embeddings: a.has_embeddings
                 })))
             }
-
-            // Check a sample embedding
-            const { data: sampleEmbedding, error: sampleError } = await supabase
-                .from('kb_embeddings')
-                .select('embedding')
-                .limit(1)
-                .single()
-
-            if (sampleError) {
-                console.error('RAG Search - Error checking sample embedding:', sampleError)
-            } else {
-                console.log('RAG Search - Sample embedding type:', typeof sampleEmbedding?.embedding)
-                console.log('RAG Search - Sample embedding:', sampleEmbedding?.embedding?.slice?.(0, 100))
-            }
         }
 
-        // Search for similar documents
         console.log('RAG Search - Executing vector similarity search')
-        console.log('RAG Search - Query embedding sample:', queryEmbedding.slice(0, 5), '...')
-        const { data: results, error } = await supabase.rpc('match_kb_embeddings', {
-            query_embedding: queryEmbedding,  // Pass the raw array, Postgres will handle the conversion
-            similarity_threshold: 0.5,  // Keep threshold at 0.5
-            match_count: limit * 4  // Get more results to filter
-        })
+        console.log('RAG Search - Query embedding type:', typeof queryEmbedding)
+        console.log('RAG Search - Query embedding is array:', Array.isArray(queryEmbedding))
+        console.log('RAG Search - Query embedding length:', queryEmbedding.length)
+        console.log('RAG Search - Query embedding first 5 values:', queryEmbedding.slice(0, 5))
+
+        // Log the exact parameters being sent to the function
+        const params = {
+            query_embedding: queryEmbedding,
+            similarity_threshold: 0.1,  // Using a lower threshold to capture more matches
+            match_count: limit
+        }
+        console.log('RAG Search - Function parameters:', JSON.stringify(params))
+
+        const { data: matches, error } = await supabase.rpc('match_kb_embeddings', params)
 
         if (error) {
             console.error('RAG Search - Vector search error:', error)
-            // Check if it's a type conversion error
-            if (error.message?.includes('vector')) {
-                console.error('RAG Search - Vector conversion error. Embedding type:', typeof queryEmbedding)
-                console.error('RAG Search - Embedding array?', Array.isArray(queryEmbedding))
-                console.error('RAG Search - Embedding length:', queryEmbedding.length)
-            }
+            console.error('RAG Search - Error code:', error.code)
+            console.error('RAG Search - Error message:', error.message)
+            console.error('RAG Search - Error details:', error.details)
             throw error
         }
 
-        // Convert distances to similarities (smaller distance = higher similarity)
-        const processedResults = results?.map(result => ({
-            ...result,
-            similarity: Math.exp(-result.similarity)  // Convert distance to similarity score between 0 and 1
-        })) || []
+        if (!matches || matches.length === 0) {
+            console.log('RAG Search - No matches found')
+            // Debug: Check the first embedding in the database
+            const { data: debugMatches, error: debugError } = await supabase
+                .from('kb_embeddings')
+                .select('id, content, article_id, embedding')
+                .limit(1)
 
-        console.log('RAG Search - Vector search results:', {
-            count: processedResults.length,
-            results: processedResults.map(r => ({
-                title: r.article_title,
-                similarity: r.similarity
-            }))
-        })
+            if (debugMatches?.[0]) {
+                const debugEmbedding = debugMatches[0].embedding
+                console.log('RAG Search - Debug - First embedding metadata:', {
+                    id: debugMatches[0].id,
+                    content_preview: debugMatches[0].content.substring(0, 100),
+                    embedding_length: Array.isArray(debugEmbedding) ? debugEmbedding.length : 0,
+                    embedding_sample: Array.isArray(debugEmbedding) ? debugEmbedding.slice(0, 5) : []
+                })
 
-        // If no vector search results, use direct search results
-        if (!processedResults || processedResults.length === 0) {
-            console.log('RAG Search - No vector matches, using direct matches')
-            if (directMatches && directMatches.length > 0) {
-                console.log('RAG Search - Returning direct matches')
-                return directMatches.map(article => ({
-                    article_id: article.id,
-                    title: article.title,
-                    content: article.content,
-                    similarity: 0.8  // Default similarity for direct matches
-                }))
+                // Calculate cosine similarity manually for debugging
+                if (Array.isArray(debugEmbedding) && debugEmbedding.length === queryEmbedding.length) {
+                    const dotProduct = queryEmbedding.reduce((sum: number, val: number, i: number) => sum + val * (debugEmbedding[i] as number), 0)
+                    const queryMagnitude = Math.sqrt(queryEmbedding.reduce((sum: number, val: number) => sum + val * val, 0))
+                    const embeddingMagnitude = Math.sqrt(debugEmbedding.reduce((sum: number, val: number) => sum + val * val, 0))
+                    const cosineSimilarity = dotProduct / (queryMagnitude * embeddingMagnitude)
+                    console.log('RAG Search - Debug - Manual cosine similarity with first embedding:', cosineSimilarity)
+                }
             }
+            console.log('RAG Search - Debug - Error:', debugError)
+            return []
         }
 
-        // Format and filter results
-        const formattedResults = processedResults
-            .filter(result => result.similarity > 0.3) // Lower threshold since we're using exponential scaling
-            .map(result => ({
-                article_id: result.article_id,
-                title: result.article_title,
-                content: result.content,
-                similarity: result.similarity
-            }))
-            .slice(0, limit)
+        console.log('RAG Search - Matches found:', matches.length)
+        console.log('RAG Search - Match details:', matches.map(m => ({
+            title: m.article_title,
+            similarity: m.similarity,
+            url: m.article_url
+        })))
 
-        console.log('RAG Search - Final results:', {
-            count: formattedResults.length,
-            results: formattedResults.map(r => ({
-                title: r.title,
-                similarity: r.similarity
-            }))
-        })
+        return matches.map(match => ({
+            content: match.content,
+            article_id: match.article_id,
+            title: match.article_title,
+            article_url: match.article_url,
+            similarity: match.similarity
+        }))
 
-        return formattedResults
     } catch (error) {
         console.error('RAG Search - Critical error:', error)
         return []

@@ -1,16 +1,21 @@
 // @ts-nocheck
+
 import { serve } from "std/http/server.ts"
 import { createClient } from "@supabase/supabase-js"
 import OpenAI from "openai"
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter"
 import { OpenAIEmbeddings } from "langchain/embeddings/openai"
 
+
 const openai = new OpenAI({
     apiKey: Deno.env.get('OPENAI_API_KEY')
 })
 
 const embeddings = new OpenAIEmbeddings({
-    openAIApiKey: Deno.env.get('OPENAI_API_KEY')
+    openAIApiKey: Deno.env.get('OPENAI_API_KEY'),
+    modelName: 'text-embedding-3-small',
+    dimensions: 1536,
+    stripNewLines: true
 })
 
 const textSplitter = new RecursiveCharacterTextSplitter({
@@ -50,6 +55,22 @@ function log(message: string) {
     console.log(message)
 }
 
+function validateEmbedding(embedding: number[]): boolean {
+    if (!Array.isArray(embedding)) {
+        log('Embedding is not an array')
+        return false
+    }
+    if (embedding.length !== 1536) {
+        log(`Invalid embedding dimension: ${embedding.length}`)
+        return false
+    }
+    if (!embedding.every(n => typeof n === 'number' && !isNaN(n))) {
+        log('Embedding contains invalid numbers')
+        return false
+    }
+    return true
+}
+
 async function processArticle(article, batchNum: number, articleNum: number, totalArticles: number) {
     try {
         const chunks = await textSplitter.splitText(article.content)
@@ -62,15 +83,37 @@ async function processArticle(article, batchNum: number, articleNum: number, tot
         try {
             for (const chunk of chunks) {
                 const embedding = await embeddings.embedQuery(chunk)
-                const { error: insertError } = await supabaseClient
+
+                // Validate embedding before insertion
+                if (!validateEmbedding(embedding)) {
+                    throw new Error(`Invalid embedding generated for chunk of article ${article.id}`)
+                }
+
+                // Log embedding details
+                log(`Generated embedding: length=${embedding.length}, sample=[${embedding.slice(0, 3)}...]`)
+
+                // Ensure embedding is a flat array of numbers
+                const flatEmbedding = Array.from(embedding).map(n => Number(n))
+
+                // Insert directly into kb_embeddings table
+                const { data: insertData, error: insertError } = await supabaseClient
                     .from('kb_embeddings')
                     .insert({
                         article_id: article.id,
                         content: chunk,
-                        embedding
+                        embedding: flatEmbedding,
+                        metadata: {}
                     })
+                    .select('id')
+                    .single()
 
-                if (insertError) throw insertError
+                if (insertError) {
+                    log(`Insert error: ${JSON.stringify(insertError)}`)
+                    throw insertError
+                }
+
+                // Log successful embedding
+                log(`✓ Chunk embedded: id=${insertData?.id}, dimensions=${flatEmbedding.length}`)
             }
 
             // Update article to mark it as processed

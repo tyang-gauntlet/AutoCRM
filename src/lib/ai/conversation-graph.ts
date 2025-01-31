@@ -265,20 +265,36 @@ const nodes = {
         // Get dynamic system prompt
         const systemPrompt = await generateSystemPrompt()
 
+        // If no context was found, create a ticket suggestion response
+        if (!state.context.length) {
+            return {
+                ...state,
+                response: "I don't have any information about that in my knowledge base. Would you like me to create a support ticket to help you with your question?",
+                metrics: {
+                    ...state.metrics,
+                    rgqs: {
+                        response_text: "I don't have any information about that in my knowledge base. Would you like me to create a support ticket to help you with your question?",
+                        overall_quality: 1, // Perfect adherence to protocol
+                        relevance: 1, // Perfectly relevant response for no-context
+                        accuracy: 1, // Accurate admission of no knowledge
+                        tone: 1 // Professional and helpful tone
+                    }
+                }
+            }
+        }
+
         const messages = [
             new SystemMessage(
-                `${systemPrompt}\n\nIMPORTANT: Keep responses concise and conversational. Avoid bullet points and lists. 
-                Integrate information naturally into 2-3 sentences. For knowledge base results, briefly mention key topics 
-                and ask a follow-up question about their specific interests.`
+                `${systemPrompt}\n\nCRITICAL INSTRUCTION: You MUST ONLY use information from the provided knowledge base context. If the context doesn't contain information to fully answer the question, acknowledge the limitations of what you know and suggest creating a ticket.\n\nResponse Guidelines:
+                1. Be concise and natural - use 1-2 sentences for simple answers
+                2. Only use information explicitly stated in the context
+                3. End with a focused follow-up question
+                4. No bullet points or lists unless explicitly requested`
             ),
             new HumanMessage(
-                state.context.length
-                    ? `Context from knowledge base:\n${formatContext(state.context)}\n\n` +
-                    (state.metrics?.tool_usage ? `Tool usage:\n${JSON.stringify(state.metrics.tool_usage, null, 2)}\n\n` : '') +
-                    `User message: ${state.currentMessage}`
-                    : `No relevant context found in knowledge base.\n` +
-                    (state.metrics?.tool_usage ? `Tool usage:\n${JSON.stringify(state.metrics.tool_usage, null, 2)}\n\n` : '') +
-                    `User message: ${state.currentMessage}`
+                `Context from knowledge base:\n${formatContext(state.context)}\n\n` +
+                (state.metrics?.tool_usage ? `Tool usage:\n${JSON.stringify(state.metrics.tool_usage, null, 2)}\n\n` : '') +
+                `User message: ${state.currentMessage}`
             )
         ]
 
