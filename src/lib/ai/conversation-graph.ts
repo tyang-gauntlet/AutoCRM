@@ -2,11 +2,11 @@ import { ChatMessage } from '@/types/chat'
 import { RunnableSequence } from '@langchain/core/runnables'
 import { ChatOpenAI } from '@langchain/openai'
 import { HumanMessage, SystemMessage } from '@langchain/core/messages'
-import { AgentAction, AgentResponse, RAGContext } from './agent-interfaces'
+import { AgentResponse, RAGContext } from './agent-interfaces'
 import { searchKnowledge, formatContext } from './rag'
 import { executeToolCall } from './tools'
 import { recordKRAMetrics, recordRGQSMetrics } from './metrics'
-import { SYSTEM_PROMPT, generateSystemPrompt } from './prompts'
+import { generateSystemPrompt } from './prompts'
 
 // Define our conversation state type
 interface ConversationState {
@@ -33,7 +33,7 @@ interface ConversationState {
         description: string
         priority: string
     }
-    intent?: 'greeting' | 'question' | 'affirmative' | 'unknown'
+    intent?: 'greeting' | 'question' | 'affirmative' | 'unknown' | 'ticket_request'
     isFirstMessage?: boolean
 }
 
@@ -43,6 +43,45 @@ const model = new ChatOpenAI({
     temperature: 0.7,
     maxTokens: 2000
 })
+
+// Helper function to create a ticket with consistent behavior
+const createTicketWithResponse = async (
+    state: ConversationState,
+    topic: string,
+    originalMessage: string,
+    priority: 'low' | 'medium' | 'high' = 'medium',
+    description?: string
+) => {
+    const ticketDetails = {
+        title: `Support Request: ${topic}`,
+        description: description || `User requested assistance regarding: ${topic}\n\nOriginal request: "${originalMessage}"`,
+        priority
+    }
+
+    const toolCall = await executeToolCall('createTicket', ticketDetails, state.userId)
+
+    if (!toolCall.error) {
+        const ticketResult = toolCall.result as { id: string, title: string }
+        return {
+            ...state,
+            intent: 'ticket_request',
+            needsTicket: false,
+            toolCalls: [toolCall],
+            response: `I've created a ticket about ${topic} (ID: ${ticketResult.id}). A support agent will review your request and get back to you soon. Is there anything else you'd like me to help you with?`,
+            metrics: {
+                tool_usage: {
+                    tool: 'createTicket',
+                    success: true,
+                    ticket_id: ticketResult.id,
+                    was_explicit_request: true,
+                    topic,
+                    priority
+                }
+            }
+        }
+    }
+    return null
+}
 
 // Create nodes for our conversation graph
 const nodes = {
@@ -57,17 +96,35 @@ const nodes = {
             }
         }
 
-        // Check for greetings
-        const isGreeting = /^(hi|hello|hey|greetings|good\s*(morning|afternoon|evening))$/i.test(state.currentMessage.trim())
+        // Clean the message by removing any tool names that might have been echoed
+        const cleanMessage = state.currentMessage.replace(/^createTicket\s*$/i, '').trim()
 
-        // Check for affirmative responses
-        const isAffirmative = /^(yes|yeah|sure|ok|okay|yep|y)$/i.test(state.currentMessage.trim())
+        // If message is empty after cleaning, skip processing
+        if (!cleanMessage) {
+            return {
+                ...state,
+                intent: 'unknown',
+                response: "I'm not sure what you'd like me to do. Could you please rephrase your request?"
+            }
+        }
+
+        // Check for direct ticket creation requests first
+        const ticketRequestMatch = cleanMessage.match(/\b(create|make|open|submit|raise)\s+(?:a\s+)?ticket\s+(?:about|for|on)?\s+(.+)/i)
+        if (ticketRequestMatch) {
+            const topic = ticketRequestMatch[2].trim()
+            const urgentKeywords = ['urgent', 'asap', 'emergency', 'critical', 'important']
+            const isPriority = urgentKeywords.some(keyword => cleanMessage.toLowerCase().includes(keyword))
+            const result = await createTicketWithResponse(state, topic, cleanMessage, isPriority ? 'high' : 'medium')
+            if (result) return result
+        }
+
+        // Check for affirmative responses to ticket creation offers
+        const isAffirmative = /^(yes|yeah|sure|ok|okay|yep|y)$/i.test(cleanMessage)
         const lastAssistantMessage = state.messages
             .filter(msg => msg.role === 'assistant')
             .pop()
-        const wasOfferingTicket = /create\s+ticket/i.test(lastAssistantMessage?.content || '');
+        const wasOfferingTicket = lastAssistantMessage?.content.includes("Would you like to create a support ticket")
 
-        // If this is a "yes" to a ticket creation offer, create the ticket
         if (isAffirmative && wasOfferingTicket) {
             // Get the user's previous message for context
             const previousUserMessage = state.messages
@@ -75,39 +132,18 @@ const nodes = {
                 .slice(-2)[0]  // Get the message before the "yes"
 
             if (previousUserMessage) {
-                const toolCall = await executeToolCall('createTicket', {
-                    title: 'Support Request',
-                    description: `User requested information about: ${previousUserMessage.content}`,
-                    priority: 'medium'
-                }, state.userId)
-
-                if (!toolCall.error) {
-                    const ticketResult = toolCall.result as { id: string, title: string }
-                    return {
-                        ...state,
-                        intent: 'affirmative',
-                        needsTicket: false,
-                        toolCalls: [...(state.toolCalls || []), toolCall],
-                        response: `I've created a ticket for you (ID: ${ticketResult.id}). A support agent will review your request and get back to you soon.`,
-                        metrics: {
-                            ...state.metrics,
-                            tool_usage: {
-                                tool: 'createTicket',
-                                success: true,
-                                ticket_id: ticketResult.id,
-                                was_explicit_request: true
-                            }
-                        }
-                    }
-                }
+                const topic = previousUserMessage.content.trim()
+                const result = await createTicketWithResponse(state, topic, previousUserMessage.content)
+                if (result) return result
             }
         }
 
+        // Check for greetings
+        const isGreeting = /^(hi|hello|hey|greetings|good\s*(morning|afternoon|evening))$/i.test(cleanMessage)
+
         return {
             ...state,
-            intent: isGreeting ? 'greeting'
-                : (isAffirmative && wasOfferingTicket) ? 'affirmative'
-                    : 'question'
+            intent: isGreeting ? 'greeting' : isAffirmative ? 'affirmative' : 'question'
         }
     },
 
@@ -162,7 +198,10 @@ const nodes = {
 
     // Analyze ticket need only for non-greetings
     analyze_ticket_need: async (state: ConversationState) => {
-        if (state.intent === 'greeting' || state.response) return { ...state, needsTicket: false }
+        // Skip if we already have a response or if this is a greeting
+        if (state.intent === 'greeting' || state.response || state.intent === 'ticket_request') {
+            return { ...state, needsTicket: false }
+        }
 
         // Build conversation history for analysis
         const conversationHistory = state.messages.map(msg =>
@@ -191,6 +230,18 @@ const nodes = {
                 piiMetrics.pii_types.push(type)
                 // Scrub PII from content
                 piiMetrics.scrubbed_content = piiMetrics.scrubbed_content.replace(pattern, `[REDACTED_${type.toUpperCase()}]`)
+            }
+        }
+
+        // Skip ticket analysis if we already have a ticket or response
+        if (state.toolCalls?.some(call => call.name === 'createTicket')) {
+            return {
+                ...state,
+                needsTicket: false,
+                metrics: {
+                    ...state.metrics,
+                    pii: piiMetrics
+                }
             }
         }
 
@@ -246,41 +297,14 @@ const nodes = {
             // For explicit requests, create ticket immediately
             // For other cases, create if we have enough context
             if (analysis.is_explicit_request || analysis.description) {
-                const ticketDetails = {
-                    title: analysis.title || 'Support Request',
-                    description: analysis.description || `User requested ticket about: ${piiMetrics.scrubbed_content}`,
-                    priority: analysis.priority || 'medium'
-                }
-
-                const startTime = Date.now()
-                const toolCall = await executeToolCall('createTicket', {
-                    title: ticketDetails.title,
-                    description: ticketDetails.description,
-                    priority: ticketDetails.priority
-                }, state.userId)
-                const endTime = Date.now()
-
-                if (!toolCall.error) {
-                    const ticketResult = toolCall.result as { id: string, title: string }
-                    return {
-                        ...state,
-                        needsTicket: false, // Set to false since we've already created it
-                        toolCalls: [...(state.toolCalls || []), toolCall],
-                        response: `Ticket created: ${ticketResult.id}`,
-                        metrics: {
-                            ...state.metrics,
-                            tool_usage: {
-                                tool: 'createTicket',
-                                success: true,
-                                ticket_id: ticketResult.id,
-                                was_explicit_request: analysis.is_explicit_request,
-                                execution_time_ms: endTime - startTime,
-                                priority: ticketDetails.priority
-                            },
-                            pii: piiMetrics
-                        }
-                    }
-                }
+                const result = await createTicketWithResponse(
+                    state,
+                    analysis.title || piiMetrics.scrubbed_content,
+                    piiMetrics.scrubbed_content,
+                    analysis.priority || (analysis.is_explicit_request ? 'high' : 'medium'),
+                    analysis.description
+                )
+                if (result) return result
             } else {
                 // If we need more context, ask for it
                 return {
@@ -413,13 +437,27 @@ const nodes = {
 // Create our conversation pipeline
 const pipeline = RunnableSequence.from([
     async (state: ConversationState) => await nodes.analyze_intent(state),
-    async (state: ConversationState) => await nodes.analyze_ticket_need(state),
     async (state: ConversationState) => {
-        // Skip context gathering if we already have a response (e.g. from ticket creation)
-        if (state.response) return state
+        // Skip further processing if we already have a response (e.g. from ticket creation)
+        if (state.response || state.intent === 'ticket_request' || state.toolCalls?.some(call => call.name === 'createTicket')) {
+            return state
+        }
         return await nodes.gather_context(state)
     },
-    async (state: ConversationState) => await nodes.generate_response(state),
+    async (state: ConversationState) => {
+        // Skip ticket analysis if we already have a response or it's a ticket request
+        if (state.response || state.intent === 'ticket_request' || state.toolCalls?.some(call => call.name === 'createTicket')) {
+            return state
+        }
+        return await nodes.analyze_ticket_need(state)
+    },
+    async (state: ConversationState) => {
+        // Skip response generation if we already have a response
+        if (state.response || state.toolCalls?.some(call => call.name === 'createTicket')) {
+            return state
+        }
+        return await nodes.generate_response(state)
+    },
     async (state: ConversationState) => await nodes.record_metrics(state)
 ])
 

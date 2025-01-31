@@ -1,9 +1,11 @@
 import { ToolCall, RAGContext } from '@/lib/ai/agent-interfaces'
 
 export interface ChatMessage {
-    role: 'user' | 'assistant'
+    id: string
+    role: 'user' | 'assistant' | 'system'
     content: string
-    timestamp: string
+    timestamp?: string
+    metadata?: Record<string, any>
     tool_calls?: ToolCall[]
     context_used?: RAGContext[]
     metrics?: {

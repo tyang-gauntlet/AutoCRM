@@ -4,7 +4,102 @@ import { Database } from '@/types/database'
 import { Tool, ToolCall } from './agent-interfaces'
 import { Json } from '@/types/database'
 import { searchKnowledge as searchKnowledgeRAG } from './rag'
+import { traceToolExecution } from '../langsmith/tracing'
 
+// Define tool implementations
+const toolImplementations = {
+    createTicket: async (params: {
+        title: string,
+        description: string,
+        priority: 'low' | 'medium' | 'high' | 'urgent'
+    }, userId: string) => {
+        console.log('Creating ticket:', params)
+        const supabase = createAuthClient(userId)
+
+        const { data: ticket, error } = await supabase
+            .from('tickets')
+            .insert({
+                title: params.title,
+                description: params.description,
+                priority: params.priority,
+                status: 'open',
+                created_by: userId,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .select()
+            .single()
+
+        if (error) {
+            console.error('Error creating ticket:', error)
+            throw new Error(`Failed to create ticket: ${error.message}`)
+        }
+
+        return ticket
+    },
+
+    elevateTicket: async (params: {
+        ticketId: string,
+        reason: string
+    }, userId: string) => {
+        console.log('Elevating ticket:', params)
+        const supabase = createAuthClient(userId)
+
+        const { data: ticket, error } = await supabase
+            .from('tickets')
+            .update({
+                status: 'in_review',
+                elevation_reason: params.reason,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', params.ticketId)
+            .select()
+            .single()
+
+        if (error) {
+            console.error('Error elevating ticket:', error)
+            throw new Error(`Failed to elevate ticket: ${error.message}`)
+        }
+
+        return ticket
+    },
+
+    closeTicket: async (params: {
+        ticketId: string,
+        resolution: string
+    }, userId: string) => {
+        console.log('Closing ticket:', params)
+        const supabase = createAuthClient(userId)
+
+        const { data: ticket, error } = await supabase
+            .from('tickets')
+            .update({
+                status: 'closed',
+                resolution: params.resolution,
+                closed_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', params.ticketId)
+            .select()
+            .single()
+
+        if (error) {
+            console.error('Error closing ticket:', error)
+            throw new Error(`Failed to close ticket: ${error.message}`)
+        }
+
+        return ticket
+    },
+
+    searchKnowledge: async (params: {
+        query: string,
+        limit?: number
+    }) => {
+        return searchKnowledgeRAG(params.query, params.limit)
+    }
+}
+
+// Tool definitions with metadata
 export const tools: Record<string, Tool> = {
     createTicket: {
         name: 'createTicket',
@@ -12,10 +107,11 @@ export const tools: Record<string, Tool> = {
         parameters: {
             title: { type: 'string', description: 'Title of the ticket' },
             description: { type: 'string', description: 'Description of the issue' },
-            priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'], default: 'medium' }
+            priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'], default: 'medium', description: 'Priority level of the ticket' }
         },
         required_role: 'authenticated',
-        enabled: true
+        enabled: true,
+        implementation: toolImplementations.createTicket
     },
     elevateTicket: {
         name: 'elevateTicket',
@@ -25,7 +121,8 @@ export const tools: Record<string, Tool> = {
             reason: { type: 'string', description: 'Reason for elevation' }
         },
         required_role: 'user',
-        enabled: true
+        enabled: true,
+        implementation: toolImplementations.elevateTicket
     },
     closeTicket: {
         name: 'closeTicket',
@@ -35,7 +132,8 @@ export const tools: Record<string, Tool> = {
             resolution: { type: 'string', description: 'Resolution summary' }
         },
         required_role: 'user',
-        enabled: true
+        enabled: true,
+        implementation: toolImplementations.closeTicket
     },
     searchKnowledge: {
         name: 'searchKnowledge',
@@ -45,7 +143,8 @@ export const tools: Record<string, Tool> = {
             limit: { type: 'number', description: 'Maximum number of results', default: 5 }
         },
         required_role: 'user',
-        enabled: true
+        enabled: true,
+        implementation: toolImplementations.searchKnowledge
     }
 }
 
@@ -122,159 +221,44 @@ async function getOrCreateProfile(userId: string): Promise<{ role: string }> {
 
 export async function executeToolCall(
     toolName: string,
-    args: Record<string, unknown>,
-    userId: string
-): Promise<ToolCall> {
-    console.log('🔧 Executing tool:', {
-        tool: toolName,
-        args: JSON.stringify(args, null, 2),
-        userId
-    })
-
-    const tool = tools[toolName]
-    if (!tool) {
-        console.error('❌ Tool not found:', toolName)
-        throw new Error(`Tool ${toolName} not found`)
-    }
-
-    // Create authenticated client for this user
-    const supabase = createAuthClient(userId)
-
-    const toolCall: ToolCall = {
-        id: nanoid(),
-        name: toolName,
-        start_time: new Date().toISOString()
-    }
-
-    try {
-        // User is already authenticated at the API route level
-        console.log('✅ Using authenticated user:', userId)
-
-        // Validate required arguments
-        if (toolName === 'createTicket') {
-            console.log('🔍 Validating createTicket arguments:', args)
-            if (!args.title) {
-                throw new Error('Missing required argument: title')
+    params: any,
+    userId: string,
+    runId?: string
+) {
+    return traceToolExecution(
+        'tool_execution',
+        {
+            userId,
+            messageId: params.toString(),
+        },
+        toolName,
+        params,
+        async () => {
+            const tool = tools[toolName]
+            if (!tool) {
+                throw new Error(`Tool ${toolName} not found`)
             }
-            if (!args.description) {
-                throw new Error('Missing required argument: description')
+
+            if (!tool.implementation) {
+                throw new Error(`Tool ${toolName} has no implementation`)
             }
-        }
 
-        // Execute tool
-        console.log('🚀 Executing tool logic:', toolName)
-        switch (toolName) {
-            case 'createTicket': {
-                console.log('📝 Creating ticket with data:', {
-                    title: String(args.title),
-                    description: String(args.description),
-                    priority: String(args.priority) || 'medium',
-                    created_by: userId,
-                    ai_handled: true,
-                    status: 'open'
-                })
-
-                const { data, error } = await supabase
-                    .from('tickets')
-                    .insert({
-                        title: String(args.title),
-                        description: String(args.description),
-                        priority: String(args.priority) || 'medium',
-                        created_by: userId,
-                        ai_handled: true,
-                        status: 'open'
-                    })
-                    .select()
-                    .single()
-
-                if (error) {
-                    console.error('❌ Supabase error creating ticket:', {
-                        code: error.code,
-                        message: error.message,
-                        details: error.details,
-                        hint: error.hint
-                    })
-                    throw error
+            try {
+                const result = await tool.implementation(params, userId)
+                return {
+                    error: null,
+                    result
                 }
-                console.log('✅ Ticket created successfully:', data)
-                toolCall.result = data
-                break
+            } catch (error) {
+                console.error(`Error executing tool ${toolName}:`, error)
+                return {
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                    result: null
+                }
             }
-
-            case 'elevateTicket': {
-                const { error } = await supabase
-                    .from('tickets')
-                    .update({
-                        status: 'in_progress',
-                        ai_handled: false,
-                        metadata: {
-                            elevation_reason: String(args.reason)
-                        } as Json
-                    })
-                    .eq('id', String(args.ticketId))
-
-                if (error) throw error
-                toolCall.result = { success: true }
-                break
-            }
-
-            case 'closeTicket': {
-                const { error } = await supabase
-                    .from('tickets')
-                    .update({
-                        status: 'closed',
-                        metadata: {
-                            resolution: String(args.resolution)
-                        } as Json
-                    })
-                    .eq('id', String(args.ticketId))
-
-                if (error) throw error
-                toolCall.result = { success: true }
-                break
-            }
-
-            case 'searchKnowledge': {
-                const results = await searchKnowledgeRAG(String(args.query), Number(args.limit) || 5)
-                toolCall.result = results
-                break
-            }
-
-            default:
-                throw new Error(`Tool ${toolName} not implemented`)
-        }
-    } catch (error) {
-        console.error('❌ Tool execution error:', {
-            tool: toolName,
-            error: error instanceof Error ? {
-                name: error.name,
-                message: error.message,
-                stack: error.stack,
-                cause: error.cause
-            } : error,
-            args: JSON.stringify(args, null, 2)
-        })
-
-        if (error instanceof Error) {
-            toolCall.error = `${error.name}: ${error.message}`
-        } else if (typeof error === 'object' && error !== null) {
-            toolCall.error = JSON.stringify(error)
-        } else {
-            toolCall.error = 'An unexpected error occurred'
-        }
-    }
-
-    toolCall.end_time = new Date().toISOString()
-    const duration = new Date(toolCall.end_time).getTime() - new Date(toolCall.start_time).getTime()
-    console.log('🏁 Tool execution completed:', {
-        tool: toolName,
-        success: !toolCall.error,
-        duration,
-        result: toolCall.result,
-        error: toolCall.error
-    })
-
-    return toolCall
+        },
+        runId
+    )
 }
 
 export function formatToolResult(tool: ToolCall): string {

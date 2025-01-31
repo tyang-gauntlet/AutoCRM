@@ -1,12 +1,18 @@
 import { ChatMessage } from '@/types/chat'
 import { Database } from '@/types/database'
 
-export type Tool = {
+export interface Tool {
     name: string
     description: string
-    parameters: Record<string, unknown>
-    required_role: 'admin' | 'reviewer' | 'user' | 'authenticated'
+    parameters: Record<string, {
+        type: string
+        description: string
+        enum?: string[]
+        default?: any
+    }>
+    required_role: string
     enabled: boolean
+    implementation: (params: any, userId: string) => Promise<any>
 }
 
 export type KRAMetrics = {
@@ -39,11 +45,11 @@ export interface ToolCall {
     } | any[] | string | number | boolean | null
 }
 
-export type RAGContext = {
-    article_id: string
+export interface RAGContext {
     title: string
     content: string
     similarity: number
+    metadata?: Record<string, any>
 }
 
 export type AgentAction = {
@@ -51,14 +57,11 @@ export type AgentAction = {
     reason?: string
 }
 
-export type AgentResponse = {
+export interface AgentResponse {
     message: string
-    tool_calls?: ToolCall[]
+    tool_calls?: any[]
     context_used?: RAGContext[]
-    metrics?: {
-        kra?: KRAMetrics
-        rgqs?: RGQSMetrics
-    }
+    metrics?: Record<string, any>
     actions?: AgentAction[]
 }
 

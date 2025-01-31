@@ -85,6 +85,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             if (content !== null) {
                 console.log('👤 Adding user message:', content)
                 const userMessage: ChatMessage = {
+                    id: crypto.randomUUID(),
                     role: 'user',
                     content,
                     timestamp: new Date().toISOString()
@@ -127,6 +128,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             // Add AI response
             console.log('🤖 Adding AI response to messages')
             const aiMessage: ChatMessage = {
+                id: crypto.randomUUID(),
                 role: 'assistant',
                 content: responseData.message,
                 timestamp: new Date().toISOString(),

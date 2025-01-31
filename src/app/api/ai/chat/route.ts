@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { handleChat } from '@/lib/ai/agent'
+import { handleChat } from '@/lib/ai-langsmith/agent'
 import { AgentResponse } from '@/lib/ai/agent-interfaces'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
