@@ -32,6 +32,10 @@ case "$1" in
         echo "Generating embeddings..."
         curl -i --request POST 'http://localhost:54321/functions/v1/generate-embeddings'
         ;;
+    "remote-embeddings")
+        echo "Triggering remote embeddings..."
+        curl -L -X POST 'https://yzpdqvyistlnrcwequny.supabase.co/functions/v1/generate-embeddings' -H "Authorization: Bearer $SUPABASE_ANON_KEY" --data '{"name":"Functions"}'
+        ;;
     *)
         echo "Usage: ./supabase.sh [reset|push|serve|generate-embeddings]"
         echo "  reset               - Reset database and regenerate types"

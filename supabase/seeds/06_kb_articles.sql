@@ -1,3 +1,7 @@
+-- Remove all articles from public.kb_articles
+DELETE FROM public.kb_articles;
+
+
 -- Add all articles
 WITH category_ids AS (
     SELECT id, slug FROM public.kb_categories
@@ -513,13 +517,22 @@ data: [92, 87, 95]
 (
     'b7c8d9e0-f1a2-4b5b-8c7d-9e0f1a2b3c4d',
     'Introduction to Coffee Brewing Methods',
-    'intro-coffee-brewing',
+    E'# Introduction to Coffee Brewing Methods\n\n' ||
     E'Coffee brewing is both an art and a science. This guide will introduce you to the fundamental methods of brewing coffee.\n\n' ||
-    E'There are several popular brewing methods:\n' ||
-    E'1. Pour Over\n2. French Press\n3. Espresso\n4. Cold Brew\n5. AeroPress\n\n' ||
-    E'Each method produces different flavor profiles and requires different techniques. The key factors affecting coffee brewing are:\n' ||
-    E'- Grind size\n- Water temperature\n- Brewing time\n- Coffee-to-water ratio\n\n' ||
+    E'## Popular Brewing Methods\n\n' ||
+    E'1. Pour Over\n' ||
+    E'2. French Press\n' ||
+    E'3. Espresso\n' ||
+    E'4. Cold Brew\n' ||
+    E'5. AeroPress\n\n' ||
+    E'## Key Factors\n\n' ||
+    E'The key factors affecting coffee brewing are:\n\n' ||
+    E'- Grind size\n' ||
+    E'- Water temperature\n' ||
+    E'- Brewing time\n' ||
+    E'- Coffee-to-water ratio\n\n' ||
     E'Understanding these variables will help you make better coffee.',
+    'introduction-to-coffee-brewing',
     'published',
     'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
     NOW(),
@@ -530,17 +543,22 @@ data: [92, 87, 95]
 (
     'c8d9e0f1-a2b3-4b5b-8c7d-9e0f1a2b3c4d',
     'The Perfect Pour Over Technique',
-    'pour-over-technique',
+    E'# The Perfect Pour Over Technique\n\n' ||
     E'Pour over brewing is a manual brewing method that gives you complete control over the extraction process.\n\n' ||
-    E'Equipment needed:\n' ||
-    E'- Pour over dripper\n- Paper filter\n- Kettle (gooseneck preferred)\n- Scale\n- Timer\n\n' ||
-    E'Step-by-step guide:\n' ||
+    E'## Required Equipment\n\n' ||
+    E'- Pour over dripper\n' ||
+    E'- Paper filter\n' ||
+    E'- Kettle (gooseneck preferred)\n' ||
+    E'- Scale\n' ||
+    E'- Timer\n\n' ||
+    E'## Step-by-Step Guide\n\n' ||
     E'1. Heat water to 195-205°F\n' ||
     E'2. Rinse paper filter\n' ||
     E'3. Add 20g medium-fine ground coffee\n' ||
     E'4. Pour 40g water for blooming (30 seconds)\n' ||
     E'5. Continue pouring in spirals to 320g total\n' ||
     E'6. Total brew time: 2:30-3:00 minutes',
+    'perfect-pour-over-technique',
     'published',
     'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
     NOW(),
@@ -551,18 +569,19 @@ data: [92, 87, 95]
 (
     'd9e0f1a2-b3c4-4b5b-8c7d-9e0f1a2b3c4d',
     'French Press Mastery',
-    'french-press-guide',
+    E'# French Press Mastery\n\n' ||
     E'The French Press is beloved for its rich, full-bodied coffee. Learn how to master this classic brewing method.\n\n' ||
-    E'Key principles:\n' ||
+    E'## Key Principles\n\n' ||
     E'- Use coarse ground coffee\n' ||
     E'- Water temperature: 200°F\n' ||
     E'- Steep time: 4 minutes\n' ||
     E'- 1:15 coffee-to-water ratio\n\n' ||
-    E'Common mistakes to avoid:\n' ||
+    E'## Common Mistakes to Avoid\n\n' ||
     E'1. Using too fine grind\n' ||
     E'2. Not preheating the press\n' ||
     E'3. Pressing too hard\n' ||
     E'4. Leaving coffee in the press',
+    'french-press-mastery',
     'published',
     'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
     NOW(),
@@ -573,21 +592,22 @@ data: [92, 87, 95]
 (
     'e0f1a2b3-c4d5-4b5b-8c7d-9e0f1a2b3c4d',
     'Cold Brew Coffee Guide',
-    'cold-brew-coffee',
+    E'# Cold Brew Coffee Guide\n\n' ||
     E'Cold brew produces a smooth, less acidic coffee perfect for hot days. This guide covers everything you need to know.\n\n' ||
-    E'Basic Recipe:\n' ||
+    E'## Basic Recipe\n\n' ||
     E'1. Use coarse ground coffee\n' ||
     E'2. 1:5 ratio for concentrate\n' ||
     E'3. Steep 12-24 hours\n' ||
     E'4. Filter thoroughly\n\n' ||
-    E'Storage tips:\n' ||
+    E'## Storage Tips\n\n' ||
     E'- Keep refrigerated\n' ||
     E'- Use within 2 weeks\n' ||
     E'- Dilute when serving\n\n' ||
-    E'Flavor variations:\n' ||
+    E'## Flavor Variations\n\n' ||
     E'- Add vanilla\n' ||
     E'- Use cinnamon\n' ||
     E'- Try different origins',
+    'cold-brew-coffee-guide',
     'published',
     'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
     NOW(),
@@ -598,21 +618,22 @@ data: [92, 87, 95]
 (
     'f1a2b3c4-d5e6-4b5b-8c7d-9e0f1a2b3c4d',
     'Coffee Bean Storage Best Practices',
-    'coffee-storage',
+    E'# Coffee Bean Storage Best Practices\n\n' ||
     E'Proper coffee storage is crucial for maintaining flavor and freshness. Follow these guidelines for optimal results.\n\n' ||
-    E'Storage Principles:\n' ||
+    E'## Storage Principles\n\n' ||
     E'1. Avoid light exposure\n' ||
     E'2. Keep away from heat\n' ||
     E'3. Minimize oxygen contact\n' ||
     E'4. Prevent moisture\n\n' ||
-    E'Container Requirements:\n' ||
+    E'## Container Requirements\n\n' ||
     E'- Airtight seal\n' ||
     E'- UV protection\n' ||
     E'- Non-reactive material\n\n' ||
-    E'Storage Duration:\n' ||
+    E'## Storage Duration\n\n' ||
     E'- Whole beans: 1 month\n' ||
     E'- Ground coffee: 2 weeks\n' ||
     E'- Green coffee: 6-12 months',
+    'coffee-bean-storage',
     'published',
     'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
     NOW(),
@@ -623,23 +644,24 @@ data: [92, 87, 95]
 (
     'a2b3c4d5-e6f7-4b5b-8c7d-9e0f1a2b3c4d',
     'Understanding Coffee Roast Levels',
-    'coffee-roast-levels',
+    E'# Understanding Coffee Roast Levels\n\n' ||
     E'Coffee roast levels significantly impact flavor. This guide explains the characteristics of different roasts.\n\n' ||
-    E'Light Roast:\n' ||
+    E'## Light Roast\n\n' ||
     E'- Higher acidity\n' ||
     E'- More origin flavors\n' ||
     E'- Light brown color\n' ||
     E'- No oil on surface\n\n' ||
-    E'Medium Roast:\n' ||
+    E'## Medium Roast\n\n' ||
     E'- Balanced flavor\n' ||
     E'- Medium brown color\n' ||
     E'- No oil on surface\n' ||
     E'- Most popular in US\n\n' ||
-    E'Dark Roast:\n' ||
+    E'## Dark Roast\n\n' ||
     E'- Bold, bitter taste\n' ||
     E'- Dark brown color\n' ||
     E'- Oily surface\n' ||
     E'- Less caffeine',
+    'understanding-coffee-roasts',
     'published',
     'f7c6d5e4-b3a2-4c91-8c7d-1a2b3c4d5e6f',
     NOW(),

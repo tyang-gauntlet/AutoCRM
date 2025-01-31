@@ -46,11 +46,47 @@ export const tools: Record<string, Tool> = {
         },
         required_role: 'user',
         enabled: true
+    },
+    resolveChat: {
+        name: 'resolveChat',
+        description: 'Resolve and close the current chat with an AI resolution',
+        parameters: {
+            resolution: { type: 'string', description: 'Summary of how the issue was resolved' },
+            satisfaction_level: {
+                type: 'string',
+                enum: ['satisfied', 'partially_satisfied', 'unsatisfied'],
+                description: 'Level of satisfaction with the resolution',
+                default: 'satisfied'
+            }
+        },
+        required_role: 'authenticated',
+        enabled: true
+    },
+    createChat: {
+        name: 'createChat',
+        description: 'Create a new chat session',
+        parameters: {},
+        required_role: 'authenticated',
+        enabled: true
+    },
+    addMessage: {
+        name: 'addMessage',
+        description: 'Add a message to an existing chat',
+        parameters: {
+            chatId: { type: 'string', description: 'ID of the chat to add the message to' },
+            content: { type: 'string', description: 'Message content' },
+            isAi: { type: 'boolean', description: 'Whether this is an AI message', default: false },
+            toolCalls: { type: 'array', description: 'Tool calls made in this message', items: { type: 'object' } },
+            contextUsed: { type: 'object', description: 'Context information used in this message' },
+            metrics: { type: 'object', description: 'Message metrics' }
+        },
+        required_role: 'authenticated',
+        enabled: true
     }
 }
 
 // Create authenticated Supabase client for the user
-function createAuthClient(userId: string) {
+export function createAuthClient(userId: string) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
@@ -120,6 +156,245 @@ async function getOrCreateProfile(userId: string): Promise<{ role: string }> {
     return { role: newProfile.role }
 }
 
+async function executeCreateChat(
+    userId: string
+): Promise<ToolCall> {
+    console.log('🎯 Creating new chat:', { userId })
+    const supabase = createAuthClient(userId)
+    const toolCallId = nanoid()
+
+    try {
+        // Create new chat
+        const { data: chat, error: chatError } = await supabase
+            .from('chats')
+            .insert({
+                user_id: userId,
+                status: 'active',
+                metadata: {
+                    tool_call_id: toolCallId,
+                    created_via: 'ai_tool'
+                }
+            })
+            .select()
+            .single()
+
+        if (chatError) {
+            console.error('❌ Error creating chat:', chatError)
+            throw chatError
+        }
+
+        console.log('✅ Successfully created chat:', { chatId: chat.id })
+
+        return {
+            id: toolCallId,
+            name: 'createChat',
+            args: {},
+            result: { chatId: chat.id },
+            error: null,
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString()
+        }
+    } catch (error) {
+        console.error('❌ Failed to create chat:', error)
+        return {
+            id: toolCallId,
+            name: 'createChat',
+            args: {},
+            result: null,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString()
+        }
+    }
+}
+
+async function executeAddMessage(
+    args: {
+        chatId: string,
+        content: string,
+        isAi?: boolean,
+        toolCalls?: Json[],
+        contextUsed?: Json,
+        metrics?: Json
+    },
+    userId: string
+): Promise<ToolCall> {
+    console.log('📝 Adding message to chat:', {
+        chatId: args.chatId,
+        isAi: args.isAi,
+        contentLength: args.content.length
+    })
+
+    const supabase = createAuthClient(userId)
+    const toolCallId = nanoid()
+
+    try {
+        // First verify chat exists and is active
+        const { data: chat, error: chatError } = await supabase
+            .from('chats')
+            .select('status')
+            .eq('id', args.chatId)
+            .single()
+
+        if (chatError) {
+            console.error('❌ Error finding chat:', chatError)
+            throw chatError
+        }
+
+        if (chat.status !== 'active') {
+            throw new Error('Cannot add message to non-active chat')
+        }
+
+        // Add message
+        const { data: message, error: messageError } = await supabase
+            .from('chat_messages')
+            .insert({
+                chat_id: args.chatId,
+                content: args.content,
+                sender_id: userId,
+                is_ai: args.isAi || false,
+                tool_calls: args.toolCalls ? args.toolCalls.map(tc => JSON.parse(JSON.stringify(tc))) : [],
+                context_used: args.contextUsed || {},
+                metrics: args.metrics || {},
+                metadata: {
+                    tool_call_id: toolCallId
+                }
+            })
+            .select()
+            .single()
+
+        if (messageError) {
+            console.error('❌ Error adding message:', messageError)
+            throw messageError
+        }
+
+        console.log('✅ Successfully added message:', { messageId: message.id })
+
+        return {
+            id: toolCallId,
+            name: 'addMessage',
+            args,
+            result: { messageId: message.id },
+            error: null,
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString()
+        }
+    } catch (error) {
+        console.error('❌ Failed to add message:', error)
+        return {
+            id: toolCallId,
+            name: 'addMessage',
+            args,
+            result: null,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString()
+        }
+    }
+}
+
+async function executeResolveChat(
+    args: { resolution: string; satisfaction_level: string },
+    userId: string
+): Promise<ToolCall> {
+    console.log('🎯 Starting chat resolution:', {
+        userId,
+        satisfaction_level: args.satisfaction_level
+    })
+
+    const supabase = createAuthClient(userId)
+    const toolCallId = nanoid()
+
+    try {
+        // Get the latest active chat for the user
+        const { data: chats, error: chatError } = await supabase
+            .from('chats')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(1)
+
+        if (chatError) {
+            console.error('❌ Error finding active chat:', chatError)
+            throw chatError
+        }
+
+        if (!chats || chats.length === 0) {
+            throw new Error('No active chat found')
+        }
+
+        const activeChat = chats[0]
+
+        // Update the chat with resolution details
+        const { error: updateError } = await supabase
+            .from('chats')
+            .update({
+                status: 'resolved',
+                resolution: args.resolution,
+                satisfaction_level: args.satisfaction_level,
+                resolved_at: new Date().toISOString()
+            })
+            .eq('id', activeChat.id)
+
+        if (updateError) {
+            console.error('❌ Error updating chat resolution:', updateError)
+            throw updateError
+        }
+
+        // Create an AI metric for the resolution
+        const { data: metric, error: metricError } = await supabase
+            .from('ai_metrics')
+            .insert({
+                trace_id: toolCallId,
+                type: 'rgqs',
+                score: args.satisfaction_level === 'satisfied' ? 1 :
+                    args.satisfaction_level === 'partially_satisfied' ? 0.5 : 0,
+                rgqs_metrics: {
+                    resolution_text: args.resolution,
+                    satisfaction_level: args.satisfaction_level
+                },
+                metadata: {
+                    chat_id: activeChat.id,
+                    resolution_type: 'chat'
+                },
+                created_by: userId
+            })
+            .select()
+            .single()
+
+        if (metricError) {
+            console.warn('⚠️ Failed to create metric:', metricError)
+        } else {
+            console.log('✅ Created resolution metrics:', {
+                metricId: metric.id,
+                score: metric.score
+            })
+        }
+
+        return {
+            id: toolCallId,
+            name: 'resolveChat',
+            args,
+            result: { chatId: activeChat.id },
+            error: null,
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString()
+        }
+    } catch (error) {
+        console.error('❌ Failed to resolve chat:', error)
+        return {
+            id: toolCallId,
+            name: 'resolveChat',
+            args,
+            result: null,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString()
+        }
+    }
+}
+
 export async function executeToolCall(
     toolName: string,
     args: Record<string, unknown>,
@@ -143,7 +418,11 @@ export async function executeToolCall(
     const toolCall: ToolCall = {
         id: nanoid(),
         name: toolName,
-        start_time: new Date().toISOString()
+        args: {},
+        result: null,
+        error: null,
+        startTime: new Date().toISOString(),
+        endTime: new Date().toISOString()
     }
 
     try {
@@ -240,8 +519,24 @@ export async function executeToolCall(
                 break
             }
 
+            case 'createChat':
+                return executeCreateChat(userId)
+
+            case 'addMessage':
+                return executeAddMessage(args as {
+                    chatId: string,
+                    content: string,
+                    isAi?: boolean,
+                    toolCalls?: Json[],
+                    contextUsed?: Json,
+                    metrics?: Json
+                }, userId)
+
+            case 'resolveChat':
+                return executeResolveChat(args as { resolution: string; satisfaction_level: string }, userId)
+
             default:
-                throw new Error(`Tool ${toolName} not implemented`)
+                throw new Error(`Unknown tool: ${toolName}`)
         }
     } catch (error) {
         console.error('❌ Tool execution error:', {
@@ -264,8 +559,8 @@ export async function executeToolCall(
         }
     }
 
-    toolCall.end_time = new Date().toISOString()
-    const duration = new Date(toolCall.end_time).getTime() - new Date(toolCall.start_time).getTime()
+    toolCall.endTime = new Date().toISOString()
+    const duration = new Date(toolCall.endTime).getTime() - new Date(toolCall.startTime).getTime()
     console.log('🏁 Tool execution completed:', {
         tool: toolName,
         success: !toolCall.error,

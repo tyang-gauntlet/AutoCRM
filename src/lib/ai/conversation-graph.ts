@@ -4,9 +4,10 @@ import { ChatOpenAI } from '@langchain/openai'
 import { HumanMessage, SystemMessage } from '@langchain/core/messages'
 import { AgentAction, AgentResponse, RAGContext } from './agent-interfaces'
 import { searchKnowledge, formatContext } from './rag'
-import { executeToolCall } from './tools'
+import { executeToolCall, createAuthClient } from './tools'
 import { recordKRAMetrics, recordRGQSMetrics } from './metrics'
 import { SYSTEM_PROMPT, generateSystemPrompt } from './prompts'
+import { Json } from '@/types/database'
 
 // Define our conversation state type
 interface ConversationState {
@@ -35,6 +36,11 @@ interface ConversationState {
     }
     intent?: 'greeting' | 'question' | 'affirmative' | 'unknown'
     isFirstMessage?: boolean
+    shouldResolve?: boolean
+    resolutionDetails?: {
+        resolution: string
+        satisfaction_level: 'satisfied' | 'partially_satisfied' | 'unsatisfied'
+    }
 }
 
 // Initialize LLM
@@ -340,7 +346,161 @@ const nodes = {
         }
     },
 
-    // Record metrics
+    // Check if conversation should be resolved
+    check_resolution: async (state: ConversationState) => {
+        // Skip resolution check if chat is already closed
+        if (state.response === "Chat closed. Thanks for using AutoCRM!") {
+            return state
+        }
+
+        // Check for simple confirmations like "no that's it" or "that's all"
+        const simpleConfirmation = /^(no )?th?ats? ?(it|all|good|fine)|^(no,? )?(?:im|i'?m|i am) (?:good|done|finished)|^no,? ?thanks?$/i.test(state.currentMessage.trim())
+
+        if (simpleConfirmation && !state.resolutionDetails) {
+            state = {
+                ...state,
+                resolutionDetails: {
+                    resolution: "User confirmed their questions were answered",
+                    satisfaction_level: "satisfied"
+                }
+            }
+        }
+
+        // First, check for user confirmation to resolve
+        if (state.currentMessage && state.resolutionDetails) {
+            const confirmationMessages = [
+                new SystemMessage(
+                    `Analyze if this message is confirming that the chat can be resolved.
+                    Look for:
+                    - Positive responses ("yes", "sure", "okay", etc.)
+                    - Acknowledgments ("that's all", "we're done", etc.)
+                    - Gratitude ("thanks, bye", "thank you, that's all", etc.)
+                    
+                    RESPONSE FORMAT:
+                    {
+                        "is_confirming": boolean,
+                        "confidence": number
+                    }`
+                ),
+                new HumanMessage(`User message: ${state.currentMessage}`)
+            ]
+
+            const confirmationAnalysis = await model.invoke(confirmationMessages)
+            try {
+                const content = confirmationAnalysis.content.toString()
+                    .replace(/```json\n?/g, '')
+                    .replace(/```\n?/g, '')
+                    .trim()
+                const confirmation = JSON.parse(content)
+
+                if (confirmation.is_confirming && confirmation.confidence >= 0.8) {
+                    console.log('✅ User confirmed resolution:', {
+                        message: state.currentMessage,
+                        confidence: confirmation.confidence
+                    })
+
+                    // Save chat messages before resolving
+                    const supabase = createAuthClient(state.userId)
+
+                    // Get or create active chat
+                    const { data: chats, error: chatError } = await supabase
+                        .from('chats')
+                        .select('id')
+                        .eq('user_id', state.userId)
+                        .eq('status', 'active')
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+
+                    if (chatError) {
+                        console.error('❌ Error finding active chat:', chatError)
+                        throw chatError
+                    }
+
+                    let chatId
+                    if (!chats || chats.length === 0) {
+                        // Create new chat if none exists
+                        const { data: newChat, error: createError } = await supabase
+                            .from('chats')
+                            .insert({
+                                user_id: state.userId,
+                                status: 'active',
+                                metadata: {
+                                    source: 'conversation_graph',
+                                    message_count: state.messages.length
+                                }
+                            })
+                            .select()
+                            .single()
+
+                        if (createError) {
+                            console.error('❌ Error creating chat:', createError)
+                            throw createError
+                        }
+                        chatId = newChat.id
+                    } else {
+                        chatId = chats[0].id
+                    }
+
+                    // Save all messages
+                    const { error: messagesError } = await supabase
+                        .from('chat_messages')
+                        .insert(
+                            state.messages.map(msg => ({
+                                chat_id: chatId,
+                                content: msg.content,
+                                sender_id: state.userId,
+                                is_ai: msg.role === 'assistant',
+                                tool_calls: msg.tool_calls ? msg.tool_calls.map(tc => ({
+                                    id: tc.id,
+                                    name: tc.name,
+                                    args: tc.args,
+                                    result: tc.result,
+                                    error: tc.error,
+                                    startTime: tc.startTime,
+                                    endTime: tc.endTime
+                                } as Json)) : [],
+                                context_used: msg.context_used || {},
+                                metrics: msg.metrics || {},
+                                metadata: {
+                                    timestamp: msg.timestamp,
+                                    role: msg.role
+                                }
+                            }))
+                        )
+
+                    if (messagesError) {
+                        console.error('❌ Error saving messages:', messagesError)
+                        throw messagesError
+                    }
+
+                    // Execute resolveChat tool
+                    const toolCall = await executeToolCall('resolveChat', {
+                        resolution: state.resolutionDetails.resolution,
+                        satisfaction_level: state.resolutionDetails.satisfaction_level
+                    }, state.userId)
+
+                    if (!toolCall.error) {
+                        console.log('✅ Successfully resolved chat:', {
+                            tool_call_id: toolCall.id,
+                            result: toolCall.result
+                        })
+
+                        return {
+                            ...state,
+                            response: "Chat closed. Thanks for using AutoCRM!",
+                            toolCalls: [...(state.toolCalls || []), toolCall]
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('❌ Failed to parse resolution analysis or save data:', e)
+            }
+        }
+
+        return state
+    },
+
+    // Remove handle_resolution node since we now handle it in check_resolution
     record_metrics: async (state: ConversationState) => {
         if (state.metrics.kra) {
             await recordKRAMetrics(state.ticketId, state.metrics.kra)
@@ -355,8 +515,21 @@ const nodes = {
 // Create our conversation pipeline
 const pipeline = RunnableSequence.from([
     async (state: ConversationState) => await nodes.handle_greeting(state),
-    async (state: ConversationState) => await nodes.decide_tool(state),
-    async (state: ConversationState) => await nodes.generate_response(state),
+    async (state: ConversationState) => await nodes.check_resolution(state),
+    async (state: ConversationState) => {
+        // If resolution was successful, skip other steps
+        if (state.response === "Chat closed. Thanks for using AutoCRM!") {
+            return state
+        }
+        return await nodes.decide_tool(state)
+    },
+    async (state: ConversationState) => {
+        // Skip response generation if chat is resolved
+        if (state.response === "Chat closed. Thanks for using AutoCRM!") {
+            return state
+        }
+        return await nodes.generate_response(state)
+    },
     async (state: ConversationState) => await nodes.record_metrics(state)
 ])
 
@@ -378,7 +551,17 @@ export async function processConversation(
             toolCalls: [],
             response: null,
             metrics: {},
-            isFirstMessage: previousMessages.length === 0
+            isFirstMessage: previousMessages.length === 0,
+            shouldResolve: false
+        }
+
+        // Check if last message indicated resolution
+        const lastMessage = previousMessages[previousMessages.length - 1]
+        if (lastMessage?.role === 'assistant' && lastMessage.content === "Chat closed. Thanks for using AutoCRM!") {
+            return {
+                message: '',  // Empty message to prevent further responses
+                metrics: {}
+            }
         }
 
         // Run the pipeline

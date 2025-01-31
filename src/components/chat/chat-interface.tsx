@@ -100,58 +100,80 @@ export function ChatInterface({ inputRef }: ChatInterfaceProps) {
                             {/* Tool Calls */}
                             {msg.tool_calls?.map((tool: ToolCall, index) => {
                                 return (
-                                    <Card key={index} className={cn(
-                                        "p-2 space-y-1.5 max-w-[85%] text-[11px] overflow-hidden",
-                                        msg.role === 'user' ? "ml-auto" : ""
+                                    <div key={index} className={cn(
+                                        "flex",
+                                        msg.role === 'user' ? "justify-end" : "justify-start"
                                     )}>
-                                        <button
-                                            onClick={() => toggleToolCall(tool.id)}
-                                            className="flex items-center gap-1.5 w-full hover:bg-muted/50 p-1 rounded"
-                                        >
-                                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                                {tool.name === 'createTicket' ? 'Creating Ticket' : tool.name}
-                                            </Badge>
-                                            {showToolCalls[tool.id] ? (
-                                                <ChevronUp className="h-3 w-3" />
-                                            ) : (
-                                                <ChevronDown className="h-3 w-3" />
-                                            )}
-                                            <span className="text-[10px] text-muted-foreground ml-1.5 truncate flex-1">
-                                                {tool.result ? (
-                                                    tool.name === 'createTicket' ?
-                                                        `#${(tool.result as { id: string }).id.slice(0, 8)} - ${(tool.result as { title: string }).title.slice(0, 30)}${(tool.result as { title: string }).title.length > 30 ? '...' : ''}` :
-                                                        'Completed'
-                                                ) : tool.error ? (
-                                                    <span className="text-destructive">Failed</span>
+                                        <Card className="p-1 space-y-1.5 text-[11px] overflow-hidden">
+                                            <button
+                                                onClick={() => toggleToolCall(tool.id)}
+                                                className="flex items-center gap-1.5 hover:bg-muted/50 p-1 rounded"
+                                            >
+                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                                    {tool.name === 'createTicket' ? 'Creating Ticket' : tool.name}
+                                                </Badge>
+                                                {showToolCalls[tool.id] ? (
+                                                    <ChevronUp className="h-3 w-3" />
                                                 ) : (
-                                                    <span className="flex items-center gap-2">
-                                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                                        Processing...
-                                                    </span>
+                                                    <ChevronDown className="h-3 w-3" />
                                                 )}
-                                            </span>
-                                        </button>
+                                                <div className="flex items-center gap-1.5 ml-1.5 text-[10px] text-muted-foreground">
+                                                    {tool.result ? (
+                                                        tool.name === 'createTicket' ?
+                                                            <span className="truncate max-w-[200px]">
+                                                                #{(tool.result as { id: string }).id.slice(0, 8)} - {(tool.result as { title: string }).title.slice(0, 30)}{(tool.result as { title: string }).title.length > 30 ? '...' : ''}
+                                                            </span> :
+                                                            <span>Completed</span>
+                                                    ) : tool.error ? (
+                                                        <span className="text-destructive">Failed</span>
+                                                    ) : (
+                                                        <span className="flex items-center gap-1">
+                                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                                            Processing...
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </button>
 
-                                        {showToolCalls[tool.id] && tool.result && (
-                                            <div className="mt-1.5 space-y-1.5 overflow-x-auto">
-                                                {tool.error && (
-                                                    <Alert variant="destructive">
-                                                        <AlertDescription>
-                                                            {tool.error}
-                                                        </AlertDescription>
-                                                    </Alert>
-                                                )}
-                                                {tool.result !== undefined && tool.result !== null && tool.name === 'createTicket' && (
-                                                    <div className="text-xs space-y-1">
-                                                        <div><span className="font-medium">ID:</span> {(tool.result as { id: string }).id}</div>
-                                                        <div><span className="font-medium">Title:</span> {(tool.result as { title: string }).title}</div>
-                                                        <div><span className="font-medium">Status:</span> {(tool.result as { status: string }).status}</div>
-                                                        <div><span className="font-medium">Priority:</span> {(tool.result as { priority: string }).priority}</div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </Card>
+                                            {showToolCalls[tool.id] && tool.result && (
+                                                <div className="mt-1.5 space-y-1.5 overflow-x-auto">
+                                                    {tool.error && (
+                                                        <Alert variant="destructive">
+                                                            <AlertDescription>
+                                                                {tool.error}
+                                                            </AlertDescription>
+                                                        </Alert>
+                                                    )}
+                                                    {tool.result !== undefined && tool.result !== null && (
+                                                        <div className="text-xs space-y-1">
+                                                            {tool.name === 'createTicket' ? (
+                                                                <>
+                                                                    <div><span className="font-medium">ID:</span> {(tool.result as { id: string }).id}</div>
+                                                                    <div><span className="font-medium">Title:</span> {(tool.result as { title: string }).title}</div>
+                                                                    <div><span className="font-medium">Status:</span> {(tool.result as { status: string }).status}</div>
+                                                                    <div><span className="font-medium">Priority:</span> {(tool.result as { priority: string }).priority}</div>
+                                                                </>
+                                                            ) : tool.name === 'searchKnowledge' ? (
+                                                                <div className="p-2 bg-muted rounded">
+                                                                    <pre className="whitespace-pre-wrap break-words">
+                                                                        {formatToolResult(tool)}
+                                                                    </pre>
+                                                                </div>
+                                                            ) : tool.name === 'resolveChat' ? (
+                                                                <div><span className="font-medium">Chat ID:</span> {(tool.result as { chatId: string }).chatId}</div>
+                                                            ) : (
+                                                                <div className="p-2 bg-muted rounded">
+                                                                    <pre className="whitespace-pre-wrap break-words">
+                                                                        {formatToolResult(tool)}
+                                                                    </pre>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </Card>
+                                    </div>
                                 )
                             })}
 
