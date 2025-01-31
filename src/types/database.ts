@@ -91,6 +91,104 @@ export type Database = {
           },
         ]
       }
+      chat_messages: {
+        Row: {
+          chat_id: string
+          content: string
+          context_used: Json | null
+          created_at: string
+          id: string
+          is_ai: boolean | null
+          metadata: Json | null
+          metrics: Json | null
+          sender_id: string | null
+          tool_calls: Json[] | null
+        }
+        Insert: {
+          chat_id: string
+          content: string
+          context_used?: Json | null
+          created_at?: string
+          id?: string
+          is_ai?: boolean | null
+          metadata?: Json | null
+          metrics?: Json | null
+          sender_id?: string | null
+          tool_calls?: Json[] | null
+        }
+        Update: {
+          chat_id?: string
+          content?: string
+          context_used?: Json | null
+          created_at?: string
+          id?: string
+          is_ai?: boolean | null
+          metadata?: Json | null
+          metrics?: Json | null
+          sender_id?: string | null
+          tool_calls?: Json[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chats: {
+        Row: {
+          created_at: string
+          id: string
+          metadata: Json | null
+          resolution: string | null
+          resolved_at: string | null
+          satisfaction_level: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          resolution?: string | null
+          resolved_at?: string | null
+          satisfaction_level?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          resolution?: string | null
+          resolved_at?: string | null
+          satisfaction_level?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chats_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           company: string | null
@@ -730,101 +828,6 @@ export type Database = {
           },
         ]
       }
-      chats: {
-        Row: {
-          id: string
-          user_id: string
-          status: string
-          resolution: string | null
-          satisfaction_level: string | null
-          metadata: Json
-          created_at: string
-          updated_at: string
-          resolved_at: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          status?: string
-          resolution?: string | null
-          satisfaction_level?: string | null
-          metadata?: Json
-          created_at?: string
-          updated_at?: string
-          resolved_at?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          status?: string
-          resolution?: string | null
-          satisfaction_level?: string | null
-          metadata?: Json
-          created_at?: string
-          updated_at?: string
-          resolved_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chats_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      chat_messages: {
-        Row: {
-          id: string
-          chat_id: string
-          content: string
-          sender_id: string | null
-          is_ai: boolean
-          tool_calls: Json[]
-          context_used: Json
-          metrics: Json
-          metadata: Json
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          chat_id: string
-          content: string
-          sender_id?: string | null
-          is_ai?: boolean
-          tool_calls?: Json[]
-          context_used?: Json
-          metrics?: Json
-          metadata?: Json
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          chat_id?: string
-          content?: string
-          sender_id?: string | null
-          is_ai?: boolean
-          tool_calls?: Json[]
-          context_used?: Json
-          metrics?: Json
-          metadata?: Json
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_messages_chat_id_fkey"
-            columns: ["chat_id"]
-            referencedRelation: "chats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_messages_sender_id_fkey"
-            columns: ["sender_id"]
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
     }
     Views: {
       [_ in never]: never
@@ -835,21 +838,27 @@ export type Database = {
         Returns: undefined
       }
       binary_quantize:
-      | {
-        Args: {
-          "": string
-        }
-        Returns: unknown
-      }
-      | {
-        Args: {
-          "": unknown
-        }
-        Returns: unknown
-      }
+        | {
+            Args: {
+              "": string
+            }
+            Returns: unknown
+          }
+        | {
+            Args: {
+              "": unknown
+            }
+            Returns: unknown
+          }
       commit_transaction: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      get_embedding_dimension: {
+        Args: {
+          v: string
+        }
+        Returns: number
       }
       get_policies: {
         Args: {
@@ -973,37 +982,37 @@ export type Database = {
         Returns: unknown
       }
       l2_norm:
-      | {
-        Args: {
-          "": unknown
-        }
-        Returns: number
-      }
-      | {
-        Args: {
-          "": unknown
-        }
-        Returns: number
-      }
+        | {
+            Args: {
+              "": unknown
+            }
+            Returns: number
+          }
+        | {
+            Args: {
+              "": unknown
+            }
+            Returns: number
+          }
       l2_normalize:
-      | {
-        Args: {
-          "": string
-        }
-        Returns: string
-      }
-      | {
-        Args: {
-          "": unknown
-        }
-        Returns: unknown
-      }
-      | {
-        Args: {
-          "": unknown
-        }
-        Returns: unknown
-      }
+        | {
+            Args: {
+              "": string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              "": unknown
+            }
+            Returns: unknown
+          }
+        | {
+            Args: {
+              "": unknown
+            }
+            Returns: unknown
+          }
       match_kb_embeddings: {
         Args: {
           query_embedding: number[]
@@ -1021,6 +1030,15 @@ export type Database = {
       rollback_transaction: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      safe_insert_embedding: {
+        Args: {
+          p_article_id: string
+          p_content: string
+          p_embedding: number[]
+          p_metadata?: Json
+        }
+        Returns: number
       }
       set_limit: {
         Args: {
@@ -1067,18 +1085,18 @@ export type Database = {
         Returns: string
       }
       vector_dims:
-      | {
-        Args: {
-          "": string
-        }
-        Returns: number
-      }
-      | {
-        Args: {
-          "": unknown
-        }
-        Returns: number
-      }
+        | {
+            Args: {
+              "": string
+            }
+            Returns: number
+          }
+        | {
+            Args: {
+              "": unknown
+            }
+            Returns: number
+          }
       vector_norm: {
         Args: {
           "": string
@@ -1117,96 +1135,96 @@ type PublicSchema = Database[Extract<keyof Database, "public">]
 
 export type Tables<
   PublicTableNameOrOptions extends
-  | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
-  | { schema: keyof Database },
+    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
+    | { schema: keyof Database },
   TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-  ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-    Database[PublicTableNameOrOptions["schema"]]["Views"])
-  : never = never,
+    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+        Database[PublicTableNameOrOptions["schema"]]["Views"])
+    : never = never,
 > = PublicTableNameOrOptions extends { schema: keyof Database }
   ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-    Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-  ? R
-  : never
+    ? R
+    : never
   : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
-    PublicSchema["Views"])
-  ? (PublicSchema["Tables"] &
-    PublicSchema["Views"])[PublicTableNameOrOptions] extends {
-      Row: infer R
-    }
-  ? R
-  : never
-  : never
+        PublicSchema["Views"])
+    ? (PublicSchema["Tables"] &
+        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
 export type TablesInsert<
   PublicTableNameOrOptions extends
-  | keyof PublicSchema["Tables"]
-  | { schema: keyof Database },
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
   TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-  ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = PublicTableNameOrOptions extends { schema: keyof Database }
   ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
+      Insert: infer I
+    }
+    ? I
+    : never
   : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-  ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
-  : never
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
 export type TablesUpdate<
   PublicTableNameOrOptions extends
-  | keyof PublicSchema["Tables"]
-  | { schema: keyof Database },
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
   TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-  ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = PublicTableNameOrOptions extends { schema: keyof Database }
   ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Update: infer U
-  }
-  ? U
-  : never
+      Update: infer U
+    }
+    ? U
+    : never
   : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-  ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
-    Update: infer U
-  }
-  ? U
-  : never
-  : never
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
 
 export type Enums<
   PublicEnumNameOrOptions extends
-  | keyof PublicSchema["Enums"]
-  | { schema: keyof Database },
+    | keyof PublicSchema["Enums"]
+    | { schema: keyof Database },
   EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
-  ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
-  : never = never,
+    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
 > = PublicEnumNameOrOptions extends { schema: keyof Database }
   ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
-  ? PublicSchema["Enums"][PublicEnumNameOrOptions]
-  : never
+    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-  | keyof PublicSchema["CompositeTypes"]
-  | { schema: keyof Database },
+    | keyof PublicSchema["CompositeTypes"]
+    | { schema: keyof Database },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof Database
   }
-  ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-  : never = never,
+    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
   ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
-  ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-  : never
+    ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
 

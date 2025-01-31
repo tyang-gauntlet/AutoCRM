@@ -1,8 +1,8 @@
-import { serve } from "std/http/server.ts"
-import { createClient } from "@supabase/supabase-js"
-import OpenAI from "openai"
-import { OpenAIEmbeddings } from "langchain/embeddings/openai"
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter"
+import { serve } from "https://deno.land/std@0.208.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
+import { OpenAI } from "https://esm.sh/openai@4.24.1"
+import { OpenAIEmbeddings } from "https://esm.sh/langchain@0.0.197/embeddings/openai"
+import { RecursiveCharacterTextSplitter } from "https://esm.sh/langchain@0.0.197/text_splitter"
 
 interface Article {
     id: string;
@@ -169,21 +169,45 @@ async function processArticle(article, batchNum: number, articleNum: number, tot
 
 serve(async (req: Request) => {
     try {
-        const embeddings = new OpenAIEmbeddings({
-            openAIApiKey: Deno.env.get('OPENAI_API_KEY'),
-            modelName: 'text-embedding-3-small'
-        });
+        // Fetch articles that don't have embeddings yet
+        const { data: articles, error: fetchError } = await supabaseClient
+            .from('kb_articles')
+            .select('*')
+            .eq('has_embeddings', false)
+            .limit(BATCH_SIZE);
 
-        const result = await embeddings.embedQuery("Test embedding generation");
+        if (fetchError) throw fetchError;
 
-        return new Response(JSON.stringify({ success: true, embedding: result }), {
+        if (!articles || articles.length === 0) {
+            return new Response(JSON.stringify({
+                success: true,
+                message: 'No articles found that need embeddings.'
+            }), {
+                headers: { "Content-Type": "application/json" }
+            });
+        }
+
+        // Process articles in parallel with a limit
+        const results = await Promise.all(
+            articles.map((article, index) =>
+                processArticle(article, 1, index + 1, articles.length)
+            )
+        );
+
+        return new Response(JSON.stringify({
+            success: true,
+            processed: results.length,
+            results
+        }), {
             headers: { "Content-Type": "application/json" }
         });
     } catch (error) {
         console.error('Error:', error);
-        return new Response(JSON.stringify({ error: error.message }), {
+        return new Response(JSON.stringify({
+            error: error instanceof Error ? error.message : 'Unknown error occurred'
+        }), {
             status: 500,
             headers: { "Content-Type": "application/json" }
         });
     }
-}) 
+})

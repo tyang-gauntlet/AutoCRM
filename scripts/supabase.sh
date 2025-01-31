@@ -25,7 +25,7 @@ case "$1" in
                 ;;
             "embeddings")
                 echo "Starting embeddings function..."
-                npx supabase functions serve generate-embeddings --env-file ./supabase/functions/chat/.env --no-verify-jwt --import-map ./supabase/functions/generate-embeddings/import_map.json
+                npx supabase functions serve generate-embeddings --env-file ./supabase/functions/chat/.env --no-verify-jwt
                 ;;
             *)
                 echo "Usage: ./supabase.sh serve [chat|embeddings]"
