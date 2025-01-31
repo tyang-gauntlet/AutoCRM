@@ -46,128 +46,30 @@ const model = new ChatOpenAI({
 
 // Create nodes for our conversation graph
 const nodes = {
-    // Start by analyzing intent
-    analyze_intent: async (state: ConversationState) => {
+    // Start by analyzing intent and greeting if needed
+    handle_greeting: async (state: ConversationState) => {
         // If this is the first message and no previous messages, return initial greeting
         if (state.isFirstMessage && state.messages.length === 0) {
             return {
                 ...state,
-                intent: 'greeting',
                 response: "👋 Hello! I'm your AutoCRM AI assistant. How can I help you today?"
             }
         }
+        return state
+    },
+
+    // Analyze the message and decide which tool to use
+    decide_tool: async (state: ConversationState) => {
+        if (state.response) return state // Skip if we already have a response
 
         // Check for greetings
         const isGreeting = /^(hi|hello|hey|greetings|good\s*(morning|afternoon|evening))$/i.test(state.currentMessage.trim())
-
-        // Check for affirmative responses
-        const isAffirmative = /^(yes|yeah|sure|ok|okay|yep|y)$/i.test(state.currentMessage.trim())
-        const lastAssistantMessage = state.messages
-            .filter(msg => msg.role === 'assistant')
-            .pop()
-        const wasOfferingTicket = /create\s+ticket/i.test(lastAssistantMessage?.content || '');
-
-        // If this is a "yes" to a ticket creation offer, create the ticket
-        if (isAffirmative && wasOfferingTicket) {
-            // Get the user's previous message for context
-            const previousUserMessage = state.messages
-                .filter(msg => msg.role === 'user')
-                .slice(-2)[0]  // Get the message before the "yes"
-
-            if (previousUserMessage) {
-                const toolCall = await executeToolCall('createTicket', {
-                    title: 'Support Request',
-                    description: `User requested information about: ${previousUserMessage.content}`,
-                    priority: 'medium'
-                }, state.userId)
-
-                if (!toolCall.error) {
-                    const ticketResult = toolCall.result as { id: string, title: string }
-                    return {
-                        ...state,
-                        intent: 'affirmative',
-                        needsTicket: false,
-                        toolCalls: [...(state.toolCalls || []), toolCall],
-                        response: `I've created a ticket for you (ID: ${ticketResult.id}). A support agent will review your request and get back to you soon.`,
-                        metrics: {
-                            ...state.metrics,
-                            tool_usage: {
-                                tool: 'createTicket',
-                                success: true,
-                                ticket_id: ticketResult.id,
-                                was_explicit_request: true
-                            }
-                        }
-                    }
-                }
+        if (isGreeting) {
+            return {
+                ...state,
+                response: "Hello! How can I assist you today?"
             }
         }
-
-        return {
-            ...state,
-            intent: isGreeting ? 'greeting'
-                : (isAffirmative && wasOfferingTicket) ? 'affirmative'
-                    : 'question'
-        }
-    },
-
-    // Gather context only for questions
-    gather_context: async (state: ConversationState) => {
-        // Skip context gathering for greetings and if we already have a response
-        if (state.intent === 'greeting' || state.response) {
-            return state
-        }
-
-        const startTime = new Date().getTime()
-        const context = await searchKnowledge(state.currentMessage)
-        const endTime = new Date().getTime()
-
-        const relevantThreshold = 0.7 // Threshold for considering chunks relevant
-
-        // Calculate metrics
-        const kra = {
-            query_text: state.currentMessage,
-            retrieved_chunks: context.length,
-            relevant_chunks: context.filter(c => c.similarity > relevantThreshold).length,
-            accuracy: Math.max(...context.map(c => c.similarity), 0), // Highest similarity score
-            relevance_score: context.length ?
-                context.reduce((acc, c) => acc + c.similarity, 0) / context.length :
-                0, // Average similarity
-            context_match: context.length > 0 ? 1 : 0 // Whether any context was found
-        }
-
-        // Record RAG search as a tool call
-        const toolCall = {
-            id: `rag-${Date.now()}`,
-            name: 'searchKnowledge',
-            start_time: new Date(startTime).toISOString(),
-            end_time: new Date(endTime).toISOString(),
-            result: {
-                context_found: context.length,
-                top_similarity: kra.accuracy,
-                query: state.currentMessage
-            }
-        }
-
-        return {
-            ...state,
-            context,
-            metrics: {
-                ...state.metrics,
-                kra
-            },
-            toolCalls: [...(state.toolCalls || []), toolCall]
-        }
-    },
-
-    // Analyze ticket need only for non-greetings
-    analyze_ticket_need: async (state: ConversationState) => {
-        if (state.intent === 'greeting' || state.response) return { ...state, needsTicket: false }
-
-        // Build conversation history for analysis
-        const conversationHistory = state.messages.map(msg =>
-            `${msg.role.toUpperCase()}: ${msg.content}`
-        ).join('\n')
 
         // Check for PII in the conversation
         const piiMetrics = {
@@ -194,109 +96,155 @@ const nodes = {
             }
         }
 
-        // Create analysis prompt for ticket creation decision
-        const ticketAnalysisMessages = [
+        // Build conversation history for analysis
+        const conversationHistory = state.messages.map(msg =>
+            `${msg.role.toUpperCase()}: ${msg.content}`
+        ).join('\n')
+
+        // Create analysis prompt for tool decision
+        const toolAnalysisMessages = [
             new SystemMessage(
-                `You are a support ticket analyzer. Your job is to determine if a conversation warrants creating a support ticket.
+                `You are a support tool analyzer. Your job is to determine which tool to use based on the conversation.
                 
                 IMPORTANT GUIDELINES:
-                1. Any direct request to create/make a ticket should ALWAYS result in ticket creation
-                   Examples that should create tickets:
-                   - "can you make a ticket about X"
-                   - "create a ticket for X"
-                   - "I need a ticket for X"
-                   - "open a ticket about X"
+                1. For ticket creation:
+                   - Any direct request to create/make a ticket
+                   - Specific issues or requests that need tracking
+                   - Complex problems that need human review
                 
-                2. For other conversations, consider these factors:
-                   - Is this a specific issue or request that needs tracking?
-                   - Has enough context been provided to create a meaningful ticket?
-                   - Is this a general inquiry vs. an actual support need?
-                   - Would a ticket help in resolving the user's request?
+                2. For knowledge base search:
+                   - General questions about products/services
+                   - How-to queries
+                   - Documentation requests
                 
-                3. Don't ask for more information if:
-                   - User explicitly requests ticket creation
-                   - The topic is clear, even if details are minimal
-                
-                Respond in JSON format only:
+                RESPONSE FORMAT:
+                Respond with a raw JSON object only, no markdown formatting, no code blocks.
+                The response must match this exact structure:
                 {
-                    "needs_ticket": boolean,
+                    "tool": "createTicket" | "searchKnowledge" | null,
                     "reason": string,
-                    "title": string | null,
-                    "description": string | null,
-                    "priority": "low" | "medium" | "high" | "urgent" | null,
-                    "is_explicit_request": boolean
-                }`
+                    "ticket_details": {
+                        "title": string,
+                        "description": string,
+                        "priority": "low" | "medium" | "high" | "urgent"
+                    } | null
+                }
+                
+                Example response:
+                {"tool":"createTicket","reason":"User explicitly requested ticket creation","ticket_details":{"title":"Support Request","description":"User needs help with X","priority":"medium"}}`
             ),
             new HumanMessage(
                 `Current conversation:\n${conversationHistory}\n\nLatest message: ${piiMetrics.scrubbed_content}\n\n` +
-                `Analyze if this conversation warrants creating a support ticket.`
+                `Determine which tool to use.`
             )
         ]
 
-        const ticketAnalysis = await model.invoke(ticketAnalysisMessages)
+        const toolAnalysis = await model.invoke(toolAnalysisMessages)
         let analysis
         try {
-            analysis = JSON.parse(ticketAnalysis.content.toString())
+            // Clean up the response to handle markdown formatting
+            const content = toolAnalysis.content.toString()
+                .replace(/```json\n?/g, '')  // Remove ```json
+                .replace(/```\n?/g, '')      // Remove closing ```
+                .trim()
+
+            analysis = JSON.parse(content)
+
+            // Validate the parsed response has the expected structure
+            if (!analysis || typeof analysis !== 'object') {
+                throw new Error('Invalid response structure')
+            }
+
+            if (!['createTicket', 'searchKnowledge', null].includes(analysis.tool)) {
+                throw new Error(`Invalid tool specified: ${analysis.tool}`)
+            }
         } catch (e) {
-            console.error('Failed to parse ticket analysis:', e)
-            return { ...state, needsTicket: false }
+            console.error('Failed to parse tool analysis:', e, '\nRaw response:', toolAnalysis.content.toString())
+            return {
+                ...state,
+                metrics: { ...state.metrics, pii: piiMetrics },
+                response: "I apologize, but I encountered an error processing your request. Please try again."
+            }
         }
 
-        if (analysis.needs_ticket) {
-            // For explicit requests, create ticket immediately
-            // For other cases, create if we have enough context
-            if (analysis.is_explicit_request || analysis.description) {
-                const ticketDetails = {
-                    title: analysis.title || 'Support Request',
-                    description: analysis.description || `User requested ticket about: ${piiMetrics.scrubbed_content}`,
-                    priority: analysis.priority || 'medium'
-                }
+        // Handle ticket creation
+        if (analysis.tool === 'createTicket' && analysis.ticket_details) {
+            const startTime = Date.now()
+            const toolCall = await executeToolCall('createTicket', {
+                title: analysis.ticket_details.title,
+                description: analysis.ticket_details.description,
+                priority: analysis.ticket_details.priority
+            }, state.userId)
+            const endTime = Date.now()
 
-                const startTime = Date.now()
-                const toolCall = await executeToolCall('createTicket', {
-                    title: ticketDetails.title,
-                    description: ticketDetails.description,
-                    priority: ticketDetails.priority
-                }, state.userId)
-                const endTime = Date.now()
-
-                if (!toolCall.error) {
-                    const ticketResult = toolCall.result as { id: string, title: string }
-                    return {
-                        ...state,
-                        needsTicket: false, // Set to false since we've already created it
-                        toolCalls: [...(state.toolCalls || []), toolCall],
-                        response: `Ticket created: ${ticketResult.id}`,
-                        metrics: {
-                            ...state.metrics,
-                            tool_usage: {
-                                tool: 'createTicket',
-                                success: true,
-                                ticket_id: ticketResult.id,
-                                was_explicit_request: analysis.is_explicit_request,
-                                execution_time_ms: endTime - startTime,
-                                priority: ticketDetails.priority
-                            },
-                            pii: piiMetrics
-                        }
-                    }
-                }
-            } else {
-                // If we need more context, ask for it
+            if (!toolCall.error) {
+                const ticketResult = toolCall.result as { id: string, title: string }
                 return {
                     ...state,
-                    response: "Could you provide more details about your request? This will help us create a more specific ticket for you.",
+                    toolCalls: [...(state.toolCalls || []), toolCall],
+                    response: `Ticket created: ${ticketResult.id}`,
                     metrics: {
                         ...state.metrics,
+                        tool_usage: {
+                            tool: 'createTicket',
+                            success: true,
+                            ticket_id: ticketResult.id,
+                            execution_time_ms: endTime - startTime,
+                            priority: analysis.ticket_details.priority
+                        },
                         pii: piiMetrics
                     }
                 }
             }
         }
 
+        // Handle knowledge search
+        if (analysis.tool === 'searchKnowledge') {
+            const startTime = Date.now()
+            const context = await searchKnowledge(state.currentMessage)
+            const endTime = Date.now()
+
+            const relevantThreshold = 0.7 // Threshold for considering chunks relevant
+
+            // Calculate KRA metrics
+            const kra = {
+                query_text: state.currentMessage,
+                retrieved_chunks: context.length,
+                relevant_chunks: context.filter(c => c.similarity > relevantThreshold).length,
+                accuracy: Math.max(...context.map(c => c.similarity), 0), // Highest similarity score
+                relevance_score: context.length ?
+                    context.reduce((acc, c) => acc + c.similarity, 0) / context.length :
+                    0, // Average similarity
+                context_match: context.length > 0 ? 1 : 0 // Whether any context was found
+            }
+
+            const toolCall = {
+                id: `rag-${Date.now()}`,
+                name: 'searchKnowledge',
+                start_time: new Date(startTime).toISOString(),
+                end_time: new Date(endTime).toISOString(),
+                result: {
+                    context_found: context.length,
+                    top_similarity: kra.accuracy,
+                    query: state.currentMessage,
+                    sources: context.map(c => c.title || 'Untitled').filter(Boolean)
+                }
+            }
+
+            return {
+                ...state,
+                context,
+                toolCalls: [...(state.toolCalls || []), toolCall],
+                metrics: {
+                    ...state.metrics,
+                    kra,
+                    pii: piiMetrics
+                }
+            }
+        }
+
         return {
             ...state,
-            needsTicket: false,
             metrics: {
                 ...state.metrics,
                 pii: piiMetrics
@@ -304,12 +252,7 @@ const nodes = {
         }
     },
 
-    // Remove handle_ticket since we now create tickets immediately in analyze_ticket_need
-    handle_ticket: async (state: ConversationState) => {
-        return state
-    },
-
-    // Update generate_response to handle tool usage display
+    // Generate response based on context and tool results
     generate_response: async (state: ConversationState) => {
         if (state.response) return state // Skip if we already have a response
 
@@ -317,7 +260,11 @@ const nodes = {
         const systemPrompt = await generateSystemPrompt()
 
         const messages = [
-            new SystemMessage(systemPrompt),
+            new SystemMessage(
+                `${systemPrompt}\n\nIMPORTANT: Keep responses concise and conversational. Avoid bullet points and lists. 
+                Integrate information naturally into 2-3 sentences. For knowledge base results, briefly mention key topics 
+                and ask a follow-up question about their specific interests.`
+            ),
             new HumanMessage(
                 state.context.length
                     ? `Context from knowledge base:\n${formatContext(state.context)}\n\n` +
@@ -330,12 +277,7 @@ const nodes = {
         ]
 
         const response = await model.invoke(messages)
-        let responseText = response.content.toString()
-
-        // If a ticket was created, keep the response simple
-        if (state.metrics?.tool_usage?.tool === 'createTicket') {
-            responseText = `Ticket created with ID: ${state.metrics.tool_usage.ticket_id}`
-        }
+        const responseText = response.content.toString()
 
         // Calculate RGQS metrics
         const calculateOverallQuality = (text: string): number => {
@@ -412,13 +354,8 @@ const nodes = {
 
 // Create our conversation pipeline
 const pipeline = RunnableSequence.from([
-    async (state: ConversationState) => await nodes.analyze_intent(state),
-    async (state: ConversationState) => await nodes.analyze_ticket_need(state),
-    async (state: ConversationState) => {
-        // Skip context gathering if we already have a response (e.g. from ticket creation)
-        if (state.response) return state
-        return await nodes.gather_context(state)
-    },
+    async (state: ConversationState) => await nodes.handle_greeting(state),
+    async (state: ConversationState) => await nodes.decide_tool(state),
     async (state: ConversationState) => await nodes.generate_response(state),
     async (state: ConversationState) => await nodes.record_metrics(state)
 ])
@@ -447,10 +384,13 @@ export async function processConversation(
         // Run the pipeline
         const result = await pipeline.invoke(initialState)
 
+        // Only include context_used if no searchKnowledge tool call exists
+        const hasSearchKnowledge = result.toolCalls?.some(tc => tc.name === 'searchKnowledge')
+
         return {
             message: result.response || 'I apologize, but I encountered an error processing your request.',
             tool_calls: result.toolCalls,
-            context_used: result.context,
+            context_used: hasSearchKnowledge ? undefined : result.context,
             metrics: result.metrics
         }
     } catch (error) {
