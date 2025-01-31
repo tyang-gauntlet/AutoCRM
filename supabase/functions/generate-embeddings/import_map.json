@@ -1,9 +1,9 @@
 {
     "imports": {
-        "std/": "https://deno.land/std@0.168.0/",
-        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.7",
+        "std/http/server.ts": "https://deno.land/std@0.168.0/http/server.ts",
+        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.3",
         "openai": "https://esm.sh/openai@4.24.1",
-        "langchain/text_splitter": "https://esm.sh/langchain@0.0.95/text_splitter",
-        "langchain/embeddings/openai": "https://esm.sh/langchain@0.0.95/embeddings/openai"
+        "langchain/embeddings/openai": "https://esm.sh/langchain@0.0.95/embeddings/openai",
+        "langchain/text_splitter": "https://esm.sh/langchain@0.0.95/text_splitter"
     }
 }

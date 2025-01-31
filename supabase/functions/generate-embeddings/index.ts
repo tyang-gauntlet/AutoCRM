@@ -1,15 +1,51 @@
-// @ts-nocheck
-
 import { serve } from "std/http/server.ts"
 import { createClient } from "@supabase/supabase-js"
 import OpenAI from "openai"
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter"
 import { OpenAIEmbeddings } from "langchain/embeddings/openai"
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter"
 
+interface Article {
+    id: string;
+    content: string;
+    title: string;
+}
 
+// Validate environment variables
+const requiredEnvVars = [
+    'OPENAI_API_KEY',
+    'SUPABASE_URL',
+    'SUPABASE_SERVICE_ROLE_KEY'
+]
+
+for (const envVar of requiredEnvVars) {
+    if (!Deno.env.get(envVar)) {
+        throw new Error(`Missing required environment variable: ${envVar}`)
+    }
+}
+
+// Initialize OpenAI with error handling
 const openai = new OpenAI({
     apiKey: Deno.env.get('OPENAI_API_KEY')
 })
+
+// Initialize Supabase client with error handling
+const supabaseUrl = Deno.env.get('SUPABASE_URL')
+const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+
+if (!supabaseUrl || !supabaseServiceRoleKey) {
+    throw new Error('Missing Supabase credentials')
+}
+
+const supabaseClient = createClient(
+    supabaseUrl,
+    supabaseServiceRoleKey,
+    {
+        auth: {
+            persistSession: false,
+            autoRefreshToken: false
+        }
+    }
+)
 
 const embeddings = new OpenAIEmbeddings({
     openAIApiKey: Deno.env.get('OPENAI_API_KEY'),
@@ -38,16 +74,6 @@ const textSplitter = new RecursiveCharacterTextSplitter({
         ""           // characters
     ]
 })
-
-const supabaseClient = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    {
-        auth: {
-            persistSession: false
-        }
-    }
-)
 
 const BATCH_SIZE = 5 // Process 5 articles at a time
 
@@ -143,86 +169,21 @@ async function processArticle(article, batchNum: number, articleNum: number, tot
 
 serve(async (req: Request) => {
     try {
-        // Get unprocessed articles
-        const { data: articles, error } = await supabaseClient
-            .from('kb_articles')
-            .select('id, title, content')
-            .eq('status', 'published')
-            .eq('has_embeddings', false)
-            .order('created_at', { ascending: true })
+        const embeddings = new OpenAIEmbeddings({
+            openAIApiKey: Deno.env.get('OPENAI_API_KEY'),
+            modelName: 'text-embedding-3-small'
+        });
 
-        if (error) throw error
+        const result = await embeddings.embedQuery("Test embedding generation");
 
-        if (!articles?.length) {
-            log('No articles to process')
-            return new Response(
-                JSON.stringify({ success: true, processed: { articles: 0, chunks: 0 } }),
-                { headers: { 'Content-Type': 'application/json' } }
-            )
-        }
-
-        log(`\nProcessing ${articles.length} articles\n`)
-
-        const results = {
-            successful: 0,
-            failed: 0,
-            totalChunks: 0,
-            errors: []
-        }
-
-        // Process articles in batches
-        for (let i = 0; i < articles.length; i += BATCH_SIZE) {
-            const batch = articles.slice(i, i + BATCH_SIZE)
-
-            const batchResults = await Promise.all(
-                batch.map((article, idx) =>
-                    processArticle(article, Math.floor(i / BATCH_SIZE) + 1, i + idx + 1, articles.length)
-                )
-            )
-
-            // Aggregate batch results
-            for (const result of batchResults) {
-                if (result.success) {
-                    results.successful++
-                    results.totalChunks += result.chunks
-                } else {
-                    results.failed++
-                    results.errors.push({
-                        articleId: result.articleId,
-                        error: result.error
-                    })
-                }
-            }
-        }
-
-        // Final summary
-        log(`\nSummary:`)
-        log(`✓ Processed ${results.successful} articles (${results.totalChunks} chunks)`)
-        if (results.failed > 0) {
-            log(`× Failed ${results.failed} articles:`)
-            results.errors.forEach(err => log(`  • ${err.error}`))
-        }
-
-        return new Response(
-            JSON.stringify({
-                success: true,
-                processed: {
-                    successful: results.successful,
-                    failed: results.failed,
-                    totalChunks: results.totalChunks,
-                    errors: results.errors
-                }
-            }),
-            { headers: { 'Content-Type': 'application/json' } }
-        )
+        return new Response(JSON.stringify({ success: true, embedding: result }), {
+            headers: { "Content-Type": "application/json" }
+        });
     } catch (error) {
-        log(`Fatal error: ${error.message}`)
-        return new Response(
-            JSON.stringify({
-                success: false,
-                error: error.message
-            }),
-            { status: 500, headers: { 'Content-Type': 'application/json' } }
-        )
+        console.error('Error:', error);
+        return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" }
+        });
     }
 }) 
