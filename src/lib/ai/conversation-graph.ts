@@ -173,30 +173,117 @@ const nodes = {
             }
         }
 
+        // Analyze ticket priority based on content
+        const determinePriority = (content: string): 'low' | 'medium' | 'high' | 'urgent' => {
+            const urgentKeywords = ['broken', 'not working', 'error', 'urgent', 'emergency', 'critical', 'stopped working', 'strange noise'];
+            const highKeywords = ['problem', 'issue', 'fail', 'malfunction'];
+            const lowKeywords = ['question', 'how to', 'help with', 'guidance'];
+
+            content = content.toLowerCase();
+
+            if (urgentKeywords.some(keyword => content.includes(keyword))) return 'urgent';
+            if (highKeywords.some(keyword => content.includes(keyword))) return 'high';
+            if (lowKeywords.some(keyword => content.includes(keyword))) return 'low';
+            return 'medium';
+        };
+
         // Handle ticket creation
         if (analysis.tool === 'createTicket' && analysis.ticket_details) {
             const startTime = Date.now()
-            const toolCall = await executeToolCall('createTicket', {
-                title: analysis.ticket_details.title,
-                description: analysis.ticket_details.description,
-                priority: analysis.ticket_details.priority
-            }, state.userId)
-            const endTime = Date.now()
+            try {
+                // Create authenticated Supabase client
+                const supabase = createAuthClient(state.userId)
 
-            if (!toolCall.error) {
-                const ticketResult = toolCall.result as { id: string, title: string }
+                // Determine priority if not explicitly set
+                const priority = analysis.ticket_details.priority ||
+                    determinePriority(analysis.ticket_details.description);
+
+                // Create ticket directly using Supabase client
+                const { data: ticket, error: ticketError } = await supabase
+                    .from('tickets')
+                    .insert({
+                        title: analysis.ticket_details.title,
+                        description: analysis.ticket_details.description,
+                        priority: priority,
+                        created_by: state.userId,
+                        ai_handled: true,
+                        status: 'open',
+                        metadata: {
+                            source: 'ai_agent',
+                            initial_query: state.messages[0]?.content
+                        }
+                    })
+                    .select()
+                    .single()
+
+                if (ticketError) {
+                    console.error('Failed to create ticket:', ticketError)
+                    throw ticketError
+                }
+
+                const toolCall = {
+                    id: `ticket-${Date.now()}`,
+                    name: 'createTicket',
+                    start_time: new Date(startTime).toISOString(),
+                    end_time: new Date().toISOString(),
+                    result: {
+                        id: ticket.id,
+                        title: ticket.title,
+                        status: ticket.status,
+                        priority: ticket.priority
+                    }
+                }
+
                 return {
                     ...state,
                     toolCalls: [...(state.toolCalls || []), toolCall],
-                    response: `Ticket created: ${ticketResult.id}`,
+                    response: `I've created a support ticket for your issue. Your ticket ID is ${ticket.id}. A support representative will review your case and get back to you soon.`,
                     metrics: {
                         ...state.metrics,
                         tool_usage: {
                             tool: 'createTicket',
                             success: true,
-                            ticket_id: ticketResult.id,
-                            execution_time_ms: endTime - startTime,
-                            priority: analysis.ticket_details.priority
+                            ticket_id: ticket.id,
+                            execution_time_ms: Date.now() - startTime,
+                            priority: priority
+                        },
+                        pii: piiMetrics
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to create ticket:', error)
+                const toolCall = {
+                    id: `ticket-${Date.now()}`,
+                    name: 'createTicket',
+                    start_time: new Date(startTime).toISOString(),
+                    end_time: new Date().toISOString(),
+                    error
+                }
+
+                let errorMessage = "I apologize, but I'm currently experiencing technical difficulties creating a ticket. Please try again in a few moments or contact our support team directly."
+
+                // Check for specific error types
+                if (error instanceof Error) {
+                    if (error.message.includes('Missing required environment variables')) {
+                        errorMessage = "I apologize, but the ticket creation system is not properly configured. Please contact the system administrator."
+                        console.error('Environment variables missing for ticket creation:', error.message)
+                    } else if (error.message.includes('JWSError')) {
+                        errorMessage = "I apologize, but there seems to be an authentication issue. Please try logging out and back in, or contact support if the issue persists."
+                        console.error('Authentication error during ticket creation:', error.message)
+                    }
+                }
+
+                return {
+                    ...state,
+                    toolCalls: [...(state.toolCalls || []), toolCall],
+                    response: errorMessage,
+                    metrics: {
+                        ...state.metrics,
+                        tool_usage: {
+                            tool: 'createTicket',
+                            success: false,
+                            error: error instanceof Error ? error.message : 'Unknown error',
+                            execution_time_ms: Date.now() - startTime
                         },
                         pii: piiMetrics
                     }
@@ -369,6 +456,11 @@ const nodes = {
             return state
         }
 
+        // Don't check resolution if we don't have a response yet
+        if (!state.response) {
+            return state
+        }
+
         // Check for simple confirmations like "no that's it" or "that's all"
         const simpleConfirmation = /^(no )?th?ats? ?(it|all|good|fine)|^(no,? )?(?:im|i'?m|i am) (?:good|done|finished)|^no,? ?thanks?$/i.test(state.currentMessage.trim())
 
@@ -530,22 +622,56 @@ const nodes = {
 
 // Create our conversation pipeline
 const pipeline = RunnableSequence.from([
-    async (state: ConversationState) => await nodes.handle_greeting(state),
+    // Check resolution first, before any other operations
+    async (state: ConversationState) => {
+        // Check for conversation endings, including:
+        // 1. Simple acknowledgments with closure
+        // 2. Direct "no" responses to follow-up questions
+        // 3. Gratitude with closure
+        // 4. Explicit conversation endings
+        const closurePatterns = {
+            gratitudeClosure: /^(thanks?|thank you|thx).*?(that'?s? ?(all|it)|good(bye)?|bye|done|finished|solved|helped?)\.?$/i,
+            simpleNo: /^no[,.]? ?(thanks?|that'?s? ?(all|it)|good(bye)?|bye)?\.?$/i,
+            acknowledgment: /^(that'?s? ?(all|it)|good(bye)?|bye|done|finished|solved|helped?)\.?$/i,
+            solved: /^(yes|yeah|yep|that|this|it).*?(solved|fixed|helped|worked).*?(problem|it|issue)?\.?$/i
+        };
+
+        // Check if this is a response to a follow-up question
+        const isFollowUpResponse = state.messages.length > 0 &&
+            (state.messages[state.messages.length - 1].role === 'assistant' &&
+                (state.messages[state.messages.length - 1].content.toLowerCase().includes('would you like') ||
+                    state.messages[state.messages.length - 1].content.toLowerCase().includes('anything else')));
+
+        const message = state.currentMessage.trim().toLowerCase();
+
+        // Check against closure patterns
+        const isClosing = Object.entries(closurePatterns).some(([type, pattern]) => {
+            const matches = pattern.test(message);
+            if (matches) {
+                console.log(`✅ Detected conversation closure: ${type}`);
+                return true;
+            }
+            return false;
+        });
+
+        if (isClosing || (isFollowUpResponse && /^no\.?$/i.test(message))) {
+            return {
+                ...state,
+                response: "Thanks for using AutoCRM! Have a great day!",
+                shouldResolve: true,
+                resolutionDetails: {
+                    resolution: "User indicated conversation completion",
+                    satisfaction_level: "satisfied"
+                }
+            };
+        }
+
+        return state;
+    },
+    async (state: ConversationState) => state.response ? state : await nodes.handle_greeting(state),
+    async (state: ConversationState) => state.response ? state : await nodes.decide_tool(state),
+    async (state: ConversationState) => state.response ? state : await nodes.generate_response(state),
     async (state: ConversationState) => await nodes.check_resolution(state),
-    async (state: ConversationState) => {
-        // If resolution was successful, skip other steps
-        if (state.response === "Chat closed. Thanks for using AutoCRM!") {
-            return state
-        }
-        return await nodes.decide_tool(state)
-    },
-    async (state: ConversationState) => {
-        // Skip response generation if chat is resolved
-        if (state.response === "Chat closed. Thanks for using AutoCRM!") {
-            return state
-        }
-        return await nodes.generate_response(state)
-    },
     async (state: ConversationState) => await nodes.record_metrics(state)
 ])
 

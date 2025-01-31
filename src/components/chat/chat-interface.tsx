@@ -150,8 +150,8 @@ export function ChatInterface({ inputRef }: ChatInterfaceProps) {
                                                                 <>
                                                                     <div><span className="font-medium">ID:</span> {(tool.result as { id: string }).id}</div>
                                                                     <div><span className="font-medium">Title:</span> {(tool.result as { title: string }).title}</div>
-                                                                    <div><span className="font-medium">Status:</span> {(tool.result as { status: string }).status}</div>
-                                                                    <div><span className="font-medium">Priority:</span> {(tool.result as { priority: string }).priority}</div>
+                                                                    <div><span className="font-medium">Status:</span> {(tool.result as { status: string })?.status || 'open'}</div>
+                                                                    <div><span className="font-medium">Priority:</span> {(tool.result as { priority: string })?.priority || 'medium'}</div>
                                                                 </>
                                                             ) : tool.name === 'searchKnowledge' ? (
                                                                 <div className="p-2 bg-muted rounded">

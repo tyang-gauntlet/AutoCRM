@@ -87,25 +87,26 @@ export const tools: Record<string, Tool> = {
 
 // Create authenticated Supabase client for the user
 export function createAuthClient(userId: string) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY
 
-    return createClient<Database>(
+    if (!supabaseUrl || !supabaseServiceKey) {
+        throw new Error('Missing required environment variables: NEXT_PUBLIC_SUPABASE_URL and/or SUPABASE_SERVICE_KEY')
+    }
+
+    const supabase = createClient(
         supabaseUrl,
         supabaseServiceKey,
         {
             auth: {
                 persistSession: false,
-                autoRefreshToken: false
-            },
-            global: {
-                headers: {
-                    'Authorization': `Bearer ${supabaseServiceKey}`,
-                    'x-user-id': userId
-                }
+                autoRefreshToken: false,
+                detectSessionInUrl: false
             }
         }
     )
+
+    return supabase
 }
 
 async function getOrCreateProfile(userId: string): Promise<{ role: string }> {
