@@ -7,6 +7,7 @@ import { useChat } from '@/contexts/chat-context'
 export default function ChatPage() {
     const { sendMessage, messages, initialized } = useChat()
     const isGreetingInProgress = useRef(false)
+    const inputRef = useRef<HTMLTextAreaElement>(null)
 
     // Send initial message to trigger greeting only if no messages exist
     useEffect(() => {
@@ -30,7 +31,7 @@ export default function ChatPage() {
 
     return (
         <div className="container max-w-3xl mx-auto py-6">
-            <ChatUI />
+            <ChatUI inputRef={inputRef} />
         </div>
     )
 } 

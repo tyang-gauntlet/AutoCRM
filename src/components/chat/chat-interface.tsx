@@ -11,8 +11,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { ToolCall } from '@/lib/ai/agent-interfaces'
+import { formatToolResult } from '@/lib/ai/tools'
 
-export function ChatInterface() {
+interface ChatInterfaceProps {
+    inputRef: React.RefObject<HTMLTextAreaElement>
+}
+
+export function ChatInterface({ inputRef }: ChatInterfaceProps) {
     const { messages, sendMessage, isLoading } = useChat()
     const [message, setMessage] = useState('')
     const [showContext, setShowContext] = useState<Record<number, boolean>>({})
@@ -20,13 +25,10 @@ export function ChatInterface() {
     const scrollRef = useRef<HTMLDivElement>(null)
     const prevMessagesLength = useRef(messages.length)
 
-
-
     // Auto scroll to bottom on new messages
     useEffect(() => {
         // Only scroll if messages were added
         if (messages.length > prevMessagesLength.current) {
-            console.log('📜 Scrolling to bottom')
             if (scrollRef.current) {
                 scrollRef.current.scrollIntoView({ behavior: 'smooth' })
             }
@@ -34,11 +36,18 @@ export function ChatInterface() {
         prevMessagesLength.current = messages.length
     }, [messages])
 
+    // Add this effect near your other useEffect
+    useEffect(() => {
+        // When loading finishes, focus the input
+        if (!isLoading) {
+            inputRef.current?.focus()
+        }
+    }, [isLoading]) // Focus when loading state changes
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!message.trim() || isLoading) return
 
-        console.log('📤 Submitting message:', message)
         await sendMessage(message)
         setMessage('')
     }
@@ -78,7 +87,7 @@ export function ChatInterface() {
                             )}>
                                 <div
                                     className={cn(
-                                        "rounded-lg px-3 py-1.5 max-w-[85%] whitespace-pre-wrap break-words text-[13px]",
+                                        "rounded-lg px-3 py-1.5 max-w-[85%] whitespace-pre-wrap break-words text-[13px] overflow-hidden",
                                         msg.role === 'user'
                                             ? "bg-primary text-primary-foreground"
                                             : "bg-muted"
@@ -89,56 +98,62 @@ export function ChatInterface() {
                             </div>
 
                             {/* Tool Calls */}
-                            {msg.tool_calls?.map((tool: ToolCall, index) => (
-                                <Card key={index} className={cn(
-                                    "p-2 space-y-1.5 max-w-[85%] text-[11px]",
-                                    msg.role === 'user' ? "ml-auto" : ""
-                                )}>
-                                    <button
-                                        onClick={() => toggleToolCall(tool.id)}
-                                        className="flex items-center gap-1.5 w-full hover:bg-muted/50 p-1 rounded"
-                                    >
-                                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">{tool.name}</Badge>
-                                        {showToolCalls[tool.id] ? (
-                                            <ChevronUp className="h-3 w-3" />
-                                        ) : (
-                                            <ChevronDown className="h-3 w-3" />
-                                        )}
-                                        <span className="text-[10px] text-muted-foreground">
-                                            {tool.end_time ? 'Completed' : 'Running'}
-                                        </span>
-                                    </button>
+                            {msg.tool_calls?.map((tool: ToolCall, index) => {
+                                return (
+                                    <Card key={index} className={cn(
+                                        "p-2 space-y-1.5 max-w-[85%] text-[11px] overflow-hidden",
+                                        msg.role === 'user' ? "ml-auto" : ""
+                                    )}>
+                                        <button
+                                            onClick={() => toggleToolCall(tool.id)}
+                                            className="flex items-center gap-1.5 w-full hover:bg-muted/50 p-1 rounded"
+                                        >
+                                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                                {tool.name === 'createTicket' ? 'Creating Ticket' : tool.name}
+                                            </Badge>
+                                            {showToolCalls[tool.id] ? (
+                                                <ChevronUp className="h-3 w-3" />
+                                            ) : (
+                                                <ChevronDown className="h-3 w-3" />
+                                            )}
+                                            <span className="text-[10px] text-muted-foreground ml-1.5 truncate flex-1">
+                                                {tool.result ? (
+                                                    tool.name === 'createTicket' ?
+                                                        `#${(tool.result as { id: string }).id.slice(0, 8)} - ${(tool.result as { title: string }).title.slice(0, 30)}${(tool.result as { title: string }).title.length > 30 ? '...' : ''}` :
+                                                        'Completed'
+                                                ) : tool.error ? (
+                                                    <span className="text-destructive">Failed</span>
+                                                ) : (
+                                                    <span className="flex items-center gap-2">
+                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                        Processing...
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </button>
 
-                                    {showToolCalls[tool.id] && (
-                                        <Fragment>
-                                            {tool.error && (
-                                                <Alert variant="destructive">
-                                                    <AlertDescription>
-                                                        {tool.error}
-                                                    </AlertDescription>
-                                                </Alert>
-                                            )}
-                                            {tool.result !== undefined && tool.result !== null && (
-                                                <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
-                                                    {tool.name === 'createTicket' && typeof tool.result === 'object' && tool.result !== null ? (
-                                                        JSON.stringify({
-                                                            ticket_id: (tool.result as { id: string }).id,
-                                                            title: (tool.result as { title: string }).title,
-                                                            status: 'open'
-                                                        }, null, 2)
-                                                    ) : (
-                                                        Array.isArray(tool.result)
-                                                            ? JSON.stringify(tool.result, null, 2)
-                                                            : typeof tool.result === 'object'
-                                                                ? JSON.stringify(tool.result, null, 2)
-                                                                : String(tool.result)
-                                                    )}
-                                                </pre>
-                                            )}
-                                        </Fragment>
-                                    )}
-                                </Card>
-                            ))}
+                                        {showToolCalls[tool.id] && tool.result && (
+                                            <div className="mt-1.5 space-y-1.5 overflow-x-auto">
+                                                {tool.error && (
+                                                    <Alert variant="destructive">
+                                                        <AlertDescription>
+                                                            {tool.error}
+                                                        </AlertDescription>
+                                                    </Alert>
+                                                )}
+                                                {tool.result !== undefined && tool.result !== null && tool.name === 'createTicket' && (
+                                                    <div className="text-xs space-y-1">
+                                                        <div><span className="font-medium">ID:</span> {(tool.result as { id: string }).id}</div>
+                                                        <div><span className="font-medium">Title:</span> {(tool.result as { title: string }).title}</div>
+                                                        <div><span className="font-medium">Status:</span> {(tool.result as { status: string }).status}</div>
+                                                        <div><span className="font-medium">Priority:</span> {(tool.result as { priority: string }).priority}</div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </Card>
+                                )
+                            })}
 
                             {/* Tool Usage Metrics */}
                             {msg.metrics?.tool_usage && (
@@ -162,8 +177,8 @@ export function ChatInterface() {
                                 </Card>
                             )}
 
-                            {/* Context Used */}
-                            {msg.context_used && msg.context_used.length > 0 && (
+                            {/* Knowledge Base Context - Only show if no ticket was created */}
+                            {msg.context_used && msg.context_used.length > 0 && !msg.tool_calls?.some(tool => tool.name === 'createTicket') && (
                                 <Card className={cn(
                                     "p-2 space-y-1.5 max-w-[85%]",
                                     msg.role === 'user' ? "ml-auto" : ""
@@ -204,6 +219,7 @@ export function ChatInterface() {
 
             <form onSubmit={handleSubmit} className="flex gap-2">
                 <Textarea
+                    ref={inputRef}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyDown={handleKeyDown}

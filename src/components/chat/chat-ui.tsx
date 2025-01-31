@@ -7,7 +7,11 @@ import { Button } from '@/components/ui/button'
 import { RotateCcw } from 'lucide-react'
 import { useChat } from '@/contexts/chat-context'
 
-export function ChatUI() {
+interface ChatUIProps {
+    inputRef: React.RefObject<HTMLTextAreaElement>
+}
+
+export function ChatUI({ inputRef }: ChatUIProps) {
     const { clearMessages } = useChat()
 
     const handleStartOver = useCallback(() => {
@@ -29,7 +33,7 @@ export function ChatUI() {
                             <RotateCcw className="h-3.5 w-3.5" />
                         </Button>
                     </div>
-                    <ChatInterface />
+                    <ChatInterface inputRef={inputRef} />
                 </div>
             </Card>
         </div>
