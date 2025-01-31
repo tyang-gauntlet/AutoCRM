@@ -22,6 +22,11 @@ interface ConversationState {
         kra?: any
         rgqs?: any
         tool_usage?: any
+        pii?: {
+            has_pii: boolean
+            pii_types: string[]
+            scrubbed_content: string
+        }
     }
     ticketDetails?: {
         title: string
@@ -164,6 +169,31 @@ const nodes = {
             `${msg.role.toUpperCase()}: ${msg.content}`
         ).join('\n')
 
+        // Check for PII in the conversation
+        const piiMetrics = {
+            has_pii: false,
+            pii_types: [] as string[],
+            scrubbed_content: state.currentMessage
+        }
+
+        // Basic PII detection patterns
+        const piiPatterns = {
+            email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
+            phone: /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/,
+            ssn: /\b\d{3}[-]?\d{2}[-]?\d{4}\b/,
+            credit_card: /\b\d{4}[-]?\d{4}[-]?\d{4}[-]?\d{4}\b/
+        }
+
+        // Check for PII
+        for (const [type, pattern] of Object.entries(piiPatterns)) {
+            if (pattern.test(state.currentMessage)) {
+                piiMetrics.has_pii = true
+                piiMetrics.pii_types.push(type)
+                // Scrub PII from content
+                piiMetrics.scrubbed_content = piiMetrics.scrubbed_content.replace(pattern, `[REDACTED_${type.toUpperCase()}]`)
+            }
+        }
+
         // Create analysis prompt for ticket creation decision
         const ticketAnalysisMessages = [
             new SystemMessage(
@@ -198,7 +228,7 @@ const nodes = {
                 }`
             ),
             new HumanMessage(
-                `Current conversation:\n${conversationHistory}\n\nLatest message: ${state.currentMessage}\n\n` +
+                `Current conversation:\n${conversationHistory}\n\nLatest message: ${piiMetrics.scrubbed_content}\n\n` +
                 `Analyze if this conversation warrants creating a support ticket.`
             )
         ]
@@ -218,15 +248,17 @@ const nodes = {
             if (analysis.is_explicit_request || analysis.description) {
                 const ticketDetails = {
                     title: analysis.title || 'Support Request',
-                    description: analysis.description || `User requested ticket about: ${state.currentMessage}`,
+                    description: analysis.description || `User requested ticket about: ${piiMetrics.scrubbed_content}`,
                     priority: analysis.priority || 'medium'
                 }
 
+                const startTime = Date.now()
                 const toolCall = await executeToolCall('createTicket', {
                     title: ticketDetails.title,
                     description: ticketDetails.description,
                     priority: ticketDetails.priority
                 }, state.userId)
+                const endTime = Date.now()
 
                 if (!toolCall.error) {
                     const ticketResult = toolCall.result as { id: string, title: string }
@@ -241,8 +273,11 @@ const nodes = {
                                 tool: 'createTicket',
                                 success: true,
                                 ticket_id: ticketResult.id,
-                                was_explicit_request: analysis.is_explicit_request
-                            }
+                                was_explicit_request: analysis.is_explicit_request,
+                                execution_time_ms: endTime - startTime,
+                                priority: ticketDetails.priority
+                            },
+                            pii: piiMetrics
                         }
                     }
                 }
@@ -250,12 +285,23 @@ const nodes = {
                 // If we need more context, ask for it
                 return {
                     ...state,
-                    response: "Could you provide more details about your request? This will help us create a more specific ticket for you."
+                    response: "Could you provide more details about your request? This will help us create a more specific ticket for you.",
+                    metrics: {
+                        ...state.metrics,
+                        pii: piiMetrics
+                    }
                 }
             }
         }
 
-        return { ...state, needsTicket: false }
+        return {
+            ...state,
+            needsTicket: false,
+            metrics: {
+                ...state.metrics,
+                pii: piiMetrics
+            }
+        }
     },
 
     // Remove handle_ticket since we now create tickets immediately in analyze_ticket_need
@@ -291,6 +337,51 @@ const nodes = {
             responseText = `Ticket created with ID: ${state.metrics.tool_usage.ticket_id}`
         }
 
+        // Calculate RGQS metrics
+        const calculateOverallQuality = (text: string): number => {
+            // Basic quality checks
+            const hasGreeting = /^(hi|hello|hey|greetings)/i.test(text)
+            const hasPunctuation = /[.!?]/.test(text)
+            const hasProperLength = text.length > 20 && text.length < 500
+            const hasProperCasing = /[A-Z]/.test(text[0])
+
+            return [hasGreeting, hasPunctuation, hasProperLength, hasProperCasing]
+                .filter(Boolean).length / 4
+        }
+
+        const calculateRelevance = (text: string, context: RAGContext[]): number => {
+            if (!context.length) return 0.7 // Base relevance for no-context responses
+
+            // Use highest similarity score as base relevance
+            const baseRelevance = Math.max(...context.map(c => c.similarity))
+
+            // Adjust based on response using context keywords
+            const contextKeywords = context
+                .flatMap(c => c.content.toLowerCase().split(/\W+/))
+                .filter(word => word.length > 3)
+            const responseWords = text.toLowerCase().split(/\W+/)
+            const keywordMatches = contextKeywords
+                .filter(keyword => responseWords.includes(keyword)).length
+
+            return Math.min(1, baseRelevance + (keywordMatches * 0.1))
+        }
+
+        const calculateAccuracy = (context: RAGContext[]): number => {
+            if (!context.length) return 0.7 // Base accuracy for no-context responses
+            return Math.max(...context.map(c => c.similarity))
+        }
+
+        const calculateTone = (text: string): number => {
+            // Check for professional tone markers
+            const hasPoliteWords = /(please|thank|appreciate|assist)/i.test(text)
+            const noSlang = !/(gonna|wanna|dunno|yeah)/i.test(text)
+            const formalStructure = /^[A-Z].*[.!?]$/.test(text)
+            const appropriateLength = text.length > 10
+
+            return [hasPoliteWords, noSlang, formalStructure, appropriateLength]
+                .filter(Boolean).length / 4
+        }
+
         return {
             ...state,
             response: responseText,
@@ -298,10 +389,10 @@ const nodes = {
                 ...state.metrics,
                 rgqs: {
                     response_text: responseText,
-                    overall_quality: 0.9,
-                    relevance: state.context.length ? 0.95 : 0.7,
-                    accuracy: state.context.length ? 0.95 : 0.7,
-                    tone: 0.9
+                    overall_quality: calculateOverallQuality(responseText),
+                    relevance: calculateRelevance(responseText, state.context),
+                    accuracy: calculateAccuracy(state.context),
+                    tone: calculateTone(responseText)
                 }
             }
         }

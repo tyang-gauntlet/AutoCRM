@@ -1,19 +1,8 @@
 import { ChatOpenAI } from '@langchain/openai'
-import { HumanMessage, SystemMessage } from '@langchain/core/messages'
 import { nanoid } from 'nanoid'
-import { AgentResponse, KRAMetrics, RGQSMetrics, RAGContext } from './agent-interfaces'
-import { searchKnowledge, formatContext } from './rag'
-import { executeToolCall, tools, formatToolResult } from './tools'
-import { recordKRAMetrics, recordRGQSMetrics } from './metrics'
+import { AgentResponse } from './agent-interfaces'
 import { processConversation } from './conversation-graph'
 import { ChatMessage } from '@/types/chat'
-import { SYSTEM_PROMPT } from './prompts'
-
-const model = new ChatOpenAI({
-    modelName: 'gpt-4-turbo-preview',
-    temperature: 0.7,
-    maxTokens: 2000
-})
 
 export async function handleChat(
     message: string | null,

@@ -18,7 +18,7 @@ This document outlines the implementation plan for the AI chat agent that will h
 ### 2. Database Schema Updates
 - `tickets` table
   - status: enum ('open', 'in_review', 'closed')
-  - priority: enum ('low', 'medium', 'high')
+  - priority: enum ('low', 'medium', 'high', 'urgent')
   - assigned_to: uuid (reviewer ID)
   - metadata: jsonb (for AI routing data)
 
