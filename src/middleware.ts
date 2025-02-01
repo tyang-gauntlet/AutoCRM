@@ -23,22 +23,26 @@ const dashboardPaths = {
     user: '/user/dashboard'
 } as const
 
-// Define role-based path patterns
-const roleBasedPaths = {
-    admin: ['/admin'], // Allow all admin routes
-    reviewer: ['/reviewer', '/kb'],
-    user: ['/user', '/kb']
-}
+// Define role-based path patterns with more specific access control
+const roleAccess = {
+    admin: {
+        allowedPaths: ['/admin'],
+        dashboard: '/admin/dashboard'
+    },
+    reviewer: {
+        allowedPaths: ['/reviewer', '/kb'],
+        dashboard: '/reviewer/dashboard'
+    },
+    user: {
+        allowedPaths: ['/user', '/kb'],
+        dashboard: '/user/dashboard'
+    }
+} as const
 
 // Helper to check if path matches any pattern
-const pathMatchesPattern = (path: string, patterns: string[]) => {
-    const matches = patterns.some(pattern => path.startsWith(pattern))
-    console.log('[Middleware] Path match check:', {
-        path,
-        patterns,
-        matches
-    })
-    return matches
+const hasPathAccess = (path: string, role: UserRole): boolean => {
+    const roleConfig = roleAccess[role]
+    return roleConfig.allowedPaths.some(pattern => path.startsWith(pattern))
 }
 
 // Then export the middleware function
@@ -156,35 +160,24 @@ export async function middleware(req: NextRequest) {
 
         // Role-based route protection
         if (session) {
-            const userRole = session.user.app_metadata.role || 'user'
-            const allowedPaths = roleBasedPaths[userRole as UserRole] || []
+            const userRole = session.user.app_metadata.role as UserRole || 'user'
             const currentPath = req.nextUrl.pathname
 
             console.log('[Middleware] Checking role access:', {
                 userRole,
                 currentPath,
-                allowedPaths,
-                isAdmin: userRole === 'admin'
+                allowedPaths: roleAccess[userRole].allowedPaths
             })
 
-            let hasAccess = false
-            if (userRole === 'admin') {
-                hasAccess = currentPath.startsWith('/admin')
-                console.log('[Middleware] Admin access check:', {
-                    currentPath,
-                    hasAccess
-                })
-            } else {
-                hasAccess = pathMatchesPattern(currentPath, allowedPaths)
-            }
+            const hasAccess = hasPathAccess(currentPath, userRole)
 
             if (!hasAccess) {
                 console.log('[Middleware] Access denied, redirecting to dashboard:', {
                     userRole,
                     currentPath,
-                    redirectTo: dashboardPaths[userRole as UserRole]
+                    redirectTo: roleAccess[userRole].dashboard
                 })
-                return NextResponse.redirect(new URL(dashboardPaths[userRole as UserRole], req.url))
+                return NextResponse.redirect(new URL(roleAccess[userRole].dashboard, req.url))
             }
         }
 
